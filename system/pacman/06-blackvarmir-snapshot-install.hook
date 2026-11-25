@@ -5,7 +5,7 @@ Type = Package
 Target = *
 
 [Action]
-Description = BlackVarmir: опис знімка...
+Description = BlackVarmir: describing snapshot...
 When = PreTransaction
 Exec = /usr/local/bin/blackvarmir-snapshot-info install
 NeedsTargets
