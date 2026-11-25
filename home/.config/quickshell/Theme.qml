@@ -47,6 +47,17 @@ Singleton {
     readonly property int radiusTile: 14
     readonly property int radiusOverlay: 20
 
+    // Закріплені в доці застосунки (id .desktop-файлів без розширення).
+    // Яких немає в системі — просто не показуються.
+    readonly property var pinnedApps: [
+        "kitty",
+        "org.gnome.Nautilus",
+        "firefox",
+        "code",
+        "org.telegram.desktop",
+        "spotify"
+    ]
+
     // Рух: крива Varmir (0.16, 1, 0.3, 1), короткі тривалості
     readonly property var ease: [0.16, 1, 0.3, 1, 1, 1]
     readonly property int fast: 120

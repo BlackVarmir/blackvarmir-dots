@@ -13,11 +13,10 @@ end
 ------------------------------------------------------------
 bind(mod .. " + SPACE", hl.dsp.exec_cmd("qs ipc call spotlight toggle"))
 
--- Огляд столів і центр керування з'являться на наступному етапі (Quickshell).
--- Поки Super + Tab перемикає на попередній робочий стіл.
-bind(mod .. " + TAB", hl.dsp.focus({ workspace = "previous" }))
--- bind(mod .. " + TAB", hl.dsp.exec_cmd("qs ipc call overview toggle"))
--- bind(mod .. " + N",   hl.dsp.exec_cmd("qs ipc call control toggle"))
+bind(mod .. " + TAB",          hl.dsp.exec_cmd("qs ipc call overview toggle"))
+bind(mod .. " + N",            hl.dsp.exec_cmd("qs ipc call control toggle"))
+-- Швидко повернутися на попередній стіл (без огляду)
+bind(mod .. " + grave",        hl.dsp.focus({ workspace = "previous" }))
 
 ------------------------------------------------------------
 -- Застосунки

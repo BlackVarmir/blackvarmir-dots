@@ -14,7 +14,7 @@ end
 ------------------------------------------------------------
 hl.layer_rule({
     name         = "varmir-glass",
-    match        = { namespace = "^varmir-(bar|spotlight|notifications|control)$" },
+    match        = { namespace = "^varmir-(bar|spotlight|notifications|control|overview)$" },
     blur         = true,
     ignore_alpha = 0.2, -- не розмивати прозорі ділянки між «острівцями»
 })
