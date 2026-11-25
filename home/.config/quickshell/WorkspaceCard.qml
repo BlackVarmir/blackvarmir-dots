@@ -45,9 +45,7 @@ Item {
             font.weight: Font.DemiBold
         }
         Text {
-            text: card.windows.length === 0 ? "порожній"
-                : card.windows.length === 1 ? "1 вікно"
-                : card.windows.length < 5 ? card.windows.length + " вікна" : card.windows.length + " вікон"
+            text: card.windows.length === 0 ? "порожній" : Plural.windows(card.windows.length)
             color: Theme.textSubtle
             font.family: Theme.font
             font.pixelSize: 13

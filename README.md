@@ -34,7 +34,7 @@ cd ~/blackvarmir-dots
 | `Super + Q` | Закрити вікно |
 | `Super + 1…6` | Робочий стіл |
 | `Super + Shift + 1…6` | Перенести вікно на стіл |
-| `Super + Tab` | Огляд столів із доком: пошук, перетягування вікон між столами |
+| `Super + Tab` | Огляд столів із доком: пошук, перетягування вікон між столами. Права кнопка на значку дока — меню |
 | `Super + N` | Центр керування (або клік по правому «острівцю» панелі) |
 | `` Super + ` `` | Попередній стіл |
 | `Super + ← → ↑ ↓` | Фокус · з `Shift` — поміняти вікна місцями |
@@ -63,16 +63,19 @@ home/.config/
                             Overview · ControlCenter (+ підменю Cc*) · Notifications · NotifStore · Sys
   kitty/ fish/ starship.toml
 system/etc/                 zram і sysctl
+system/sddm/blackvarmir/    тема екрана входу (SDDM, Qt 6)
 assets/wallpapers/          шпалери Varmir Aura
 docs/PERFORMANCE.md         чеклист продуктивності
 ```
 
-Кольори, шрифти, радіуси і тривалості анімацій оболонки задаються в одному файлі: `quickshell/Theme.qml`. Для Hyprland вони в `hypr/modules/look.lua` і `animations.lua`.
+Кольори, шрифти, радіуси і тривалості анімацій оболонки задаються в одному файлі: `quickshell/Theme.qml`. Там же список застосунків, закріплених у доці за замовчуванням (далі його змінюєш з меню дока).
+
+Екран входу перевіряється без виходу з системи: `sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/blackvarmir`. Для Hyprland вони в `hypr/modules/look.lua` і `animations.lua`.
 
 ## Далі
 
 - [x] Огляд робочих столів із доком (`Super + Tab`)
 - [x] Центр керування: Wi-Fi, Bluetooth, звук, яскравість, плеєр, живлення, історія сповіщень (`Super + N`)
-- [ ] Закріплення застосунків у доці правою кнопкою (поки що список у `quickshell/Theme.qml`)
-- [ ] Тема SDDM у тому ж стилі
+- [x] Меню дока правою кнопкою: вікна застосунку, його дії, закріплення і порядок (зберігається в `~/.local/state/blackvarmir/dock.json`)
+- [x] Тема SDDM у тому ж стилі
 - [ ] Пошук файлів у Spotlight через `plocate`

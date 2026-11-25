@@ -149,6 +149,18 @@ else
     sudo systemctl enable sddm >/dev/null && info "✓ sddm"
 fi
 
+step "Екран входу (тема SDDM blackvarmir)"
+THEME_DIR=/usr/share/sddm/themes/blackvarmir
+sudo install -d "$THEME_DIR"
+sudo install -m644 "$REPO_DIR"/system/sddm/blackvarmir/{Main.qml,metadata.desktop,theme.conf} "$THEME_DIR/"
+sudo install -m644 "$REPO_DIR/assets/wallpapers/varmir-aura.png" "$THEME_DIR/background.png"
+sudo install -Dm644 /dev/stdin /etc/sddm.conf.d/10-blackvarmir.conf <<'EOF'
+# BlackVarmir: тема екрана входу
+[Theme]
+Current=blackvarmir
+EOF
+info "Перевірити без виходу: sddm-greeter-qt6 --test-mode --theme $THEME_DIR"
+
 # ── 6. Конфіги користувача (симлінки, старі — у резервну копію) ──
 step "Конфіги"
 mkdir -p "$HOME/.config"

@@ -144,7 +144,8 @@ Item {
             Keys.onPressed: event => {
                 const k = event.key;
                 if (k === Qt.Key_Escape) {
-                    if (search.text.length > 0) search.text = "";
+                    if (dock.menuIndex >= 0) dock.closeMenu();
+                    else if (search.text.length > 0) search.text = "";
                     else Panels.overviewOpen = false;
                 } else if (k === Qt.Key_Return || k === Qt.Key_Enter) {
                     root.activateSelection();
@@ -234,14 +235,26 @@ Item {
         }
     }
 
+    // Клік повз відкрите меню дока закриває лише меню, а не весь огляд
+    MouseArea {
+        anchors.fill: parent
+        visible: dock.menuIndex >= 0
+        z: 50
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onClicked: dock.closeMenu()
+    }
+
     // ───────────── Док ─────────────
     Dock {
+        id: dock
+        z: 60
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 24
         windows: root.allWindows
         onLaunched: Panels.overviewOpen = false
         onFocusRequested: t => root.focusWindow(t)
+        onCloseRequested: t => root.closeWindow(t)
     }
 
     // ───────────── «Привид» вікна під час перетягування ─────────────
