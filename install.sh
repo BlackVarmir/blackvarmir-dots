@@ -139,6 +139,23 @@ sudo install -Dm644 "$REPO_DIR/system/etc/systemd/zram-generator.conf" /etc/syst
 sudo install -Dm644 "$REPO_DIR/system/etc/sysctl.d/99-blackvarmir.conf" /etc/sysctl.d/99-blackvarmir.conf
 sudo sysctl --system >/dev/null
 
+step "Індекс файлів для Spotlight (plocate)"
+# На btrfs підтоми (зокрема @home) виглядають для updatedb як bind-монтування
+# і за замовчуванням пропускаються — тоді домашня тека не потрапила б в індекс.
+if [[ "$(findmnt -no FSTYPE --target "$HOME")" == "btrfs" ]]; then
+    sudo sed -i 's/^PRUNE_BIND_MOUNTS *= *"yes"/PRUNE_BIND_MOUNTS = "no"/' /etc/updatedb.conf
+    info "btrfs: увімкнено індексацію підтомів (PRUNE_BIND_MOUNTS = \"no\")"
+fi
+# Оновлювати індекс щогодини, а не раз на добу, щоб нові файли швидше з'являлися в пошуку
+sudo install -Dm644 /dev/stdin /etc/systemd/system/plocate-updatedb.timer.d/10-hourly.conf <<'EOF'
+[Timer]
+OnCalendar=
+OnCalendar=hourly
+RandomizedDelaySec=5min
+EOF
+sudo systemctl daemon-reload
+sudo updatedb && info "Індекс побудовано"
+
 step "Служби"
 for unit in NetworkManager bluetooth power-profiles-daemon plocate-updatedb.timer; do
     sudo systemctl enable "$unit" >/dev/null 2>&1 && info "✓ $unit" || warn "не вдалося увімкнути $unit"
