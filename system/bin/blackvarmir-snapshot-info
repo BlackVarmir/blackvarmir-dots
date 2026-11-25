@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# pacman-хук (після 05-snap-pac-pre): дописує до щойно створеного знімка «до», що саме
+# змінюється — тип операції, кількість пакетів і перші з них з версіями. Ці дані показують
+# «Налаштування → Знімки» і меню завантаження («#42 · … · перед оновленням (23)»).
+#   blackvarmir-snapshot-info <update|install|remove>   (список пакетів — зі stdin)
+set -uo pipefail
+
+kind="${1:-update}"
+command -v snapper >/dev/null || exit 0
+mapfile -t pkgs
+(( ${#pkgs[@]} )) || exit 0
+
+# Останній знімок «до», зроблений snap-pac щойно (не старший за 2 хв)
+read -r num date < <(snapper --csvout --separator '|' -c root list --columns number,type,date 2>/dev/null \
+    | awk -F'|' '$2 == "pre" { n = $1; d = $3 } END { if (n) print n, d }')
+[[ -n "${num:-}" ]] || exit 0
+created=$(date -d "$date" +%s 2>/dev/null || echo 0)
+(( $(date +%s) - created < 120 )) || exit 0
+
+# Кілька хуків в одній транзакції (оновлення + нові пакети): додаємо до вже записаного
+prev=$(snapper --csvout --separator '|' -c root list --columns number,userdata 2>/dev/null | awk -F'|' -v n="$num" '$1 == n { print $2 }')
+prev_pkgs=$(grep -o 'pkgs=[0-9]*' <<<"$prev" | cut -d= -f2)
+prev_kind=$(grep -o 'kind=[a-z]*' <<<"$prev" | cut -d= -f2)
+prev_list=$(grep -o 'list=[^,]*' <<<"$prev" | cut -d= -f2-)
+total=$(( ${prev_pkgs:-0} + ${#pkgs[@]} ))
+[[ "$prev_kind" == "update" ]] && kind=update
+
+# Перші пакети: ядро вперед, з версіями «було → стане» для оновлень
+mapfile -t ordered < <(printf '%s\n' "${pkgs[@]}" | grep -E '^linux(-lts|-zen)?$'; printf '%s\n' "${pkgs[@]}" | grep -vE '^linux(-lts|-zen)?$')
+list="$prev_list"
+for p in "${ordered[@]:0:3}"; do
+    item="$p"
+    if [[ "$kind" == "update" ]]; then
+        old=$(pacman -Q "$p" 2>/dev/null | awk '{print $2}')
+        new=$(pacman -Si "$p" 2>/dev/null | awk -F': ' '/^Version/ {print $2; exit}')
+        [[ -n "$old" && -n "$new" && "$old" != "$new" ]] && item="$p $old → $new"
+    fi
+    list="${list:+$list; }$item"
+done
+list=$(cut -d';' -f1-3 <<<"$list" | tr -d ',=')
+
+# Мова опису — як у системі
+lang=$(sed -n 's/^LANG=//p' /etc/locale.conf 2>/dev/null)
+if [[ "$lang" == uk* ]]; then
+    case "$kind" in
+        update)  what="перед оновленням ($total)" ;;
+        install) what=$([[ $total -eq 1 ]] && echo "перед встановленням ${pkgs[0]}" || echo "перед встановленням ($total)") ;;
+        remove)  what=$([[ $total -eq 1 ]] && echo "перед видаленням ${pkgs[0]}" || echo "перед видаленням ($total)") ;;
+    esac
+else
+    case "$kind" in
+        update)  what="before update ($total)" ;;
+        install) what=$([[ $total -eq 1 ]] && echo "before installing ${pkgs[0]}" || echo "before install ($total)") ;;
+        remove)  what=$([[ $total -eq 1 ]] && echo "before removing ${pkgs[0]}" || echo "before removal ($total)") ;;
+    esac
+fi
+when=$(date -d "$date" '+%Y-%m-%d %H:%M' 2>/dev/null)
+
+snapper -c root modify -d "#$num · $when · $what" \
+    --userdata "kind=$kind,pkgs=$total,list=$list,first=${pkgs[0]}" "$num" >/dev/null 2>&1 || true
+exit 0

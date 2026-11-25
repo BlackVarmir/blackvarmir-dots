@@ -14,7 +14,7 @@ DYNAMIC = {f"set.{s}" for s in ("lang", "keyboard", "display", "appearance", "so
     f"about.{s}" for s in ("device", "cpu", "memory", "gpu", "disk", "kernel", "hyprland", "quickshell", "uptime")
 } | {f"clip.{s}" for s in ("text", "link", "color", "image")} | {
     f"sys.{s}" for s in ("poweroff", "reboot", "suspend", "logout", "lock", "screenshot", "record")
-} | {f"wx.src.{s}" for s in ("manual", "wifi", "ip")} | {"wx.windMs", "wx.windMph"}
+} | {f"wx.src.{s}" for s in ("manual", "wifi", "ip")} | {"wx.windMs", "wx.windMph"} | {f"snap.{a}.{b}" for a in ("before", "until") for b in ("update", "install", "remove")}
 
 used = set(DYNAMIC)
 for f in QS.glob("*.qml"):

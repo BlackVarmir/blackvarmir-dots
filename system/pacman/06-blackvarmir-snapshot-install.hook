@@ -1,0 +1,11 @@
+# Дописати до знімка snap-pac, які пакети змінюються (див. blackvarmir-snapshot-info)
+[Trigger]
+Operation = Install
+Type = Package
+Target = *
+
+[Action]
+Description = BlackVarmir: опис знімка...
+When = PreTransaction
+Exec = /usr/local/bin/blackvarmir-snapshot-info install
+NeedsTargets

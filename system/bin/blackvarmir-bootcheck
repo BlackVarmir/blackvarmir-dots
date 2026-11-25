@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Чи дійшло минуле завантаження до екрана входу. GRUB читає boot_success з grubenv і
+# показує меню (зі знімками), якщо ні — див. /etc/grub.d/01_blackvarmir.
+#   start — на початку завантаження (boot_success=0)
+#   ok    — коли запустився екран входу (boot_success=1)
+set -euo pipefail
+env=/boot/grub/grubenv
+[[ -f "$env" ]] || exit 0
+case "${1:-}" in
+    start) grub-editenv "$env" set boot_success=0 ;;
+    ok)    grub-editenv "$env" set boot_success=1 ;;
+    *)     echo "usage: $0 start|ok" >&2; exit 1 ;;
+esac

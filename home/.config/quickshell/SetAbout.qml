@@ -11,7 +11,7 @@ SetPage {
     subtitle: Tr.t("about.subtitle")
 
     property var info: ({})
-    property int updates: -1
+    readonly property int updates: Updates.checkedAt > 0 ? Updates.count : -1
     property bool copied: false
 
     readonly property var rows: [
@@ -32,7 +32,7 @@ SetPage {
         return out;
     }
 
-    Component.onCompleted: { probe.running = true; updatesProbe.running = true; }
+    Component.onCompleted: { probe.running = true; Updates.check(); }
 
     Process {
         id: probe
@@ -60,15 +60,6 @@ SetPage {
                     quickshell: l[8]
                 };
             }
-        }
-    }
-
-    // checkupdates (pacman-contrib) не чіпає базу pacman; AUR рахуємо через paru, якщо він є
-    Process {
-        id: updatesProbe
-        command: ["sh", "-c", "a=$(checkupdates 2>/dev/null | wc -l); b=$(paru -Qua 2>/dev/null | wc -l); echo $((a + b))"]
-        stdout: StdioCollector {
-            onStreamFinished: page.updates = parseInt(text.trim()) || 0
         }
     }
 
@@ -151,8 +142,7 @@ SetPage {
             VButton {
                 text: Tr.t("about.update")
                 variant: page.updates > 0 ? "primary" : "secondary"
-                onClicked: Quickshell.execDetached(["kitty", "--class", "kitty-float", "-e", "sh", "-c",
-                    "paru -Syu || sudo pacman -Syu; echo; read -r -p '" + Tr.t("about.pressEnter") + "' _"])
+                onClicked: Updates.upgrade()
             }
         }
     }

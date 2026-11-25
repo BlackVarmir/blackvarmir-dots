@@ -1,0 +1,64 @@
+#!/bin/sh
+# BlackVarmir: пункти меню «BlackVarmir Arch» і «BlackVarmir Arch · резервне ядро (linux-lts)»
+# замість стандартних «Arch Linux, with Linux …» з 10_linux (його install.sh вимикає).
+set -e
+
+# Змінні, потрібні grub-mkconfig_lib (як у стандартних скриптах /etc/grub.d)
+# shellcheck disable=SC2034
+prefix="/usr"
+# shellcheck disable=SC2034
+exec_prefix="/usr"
+# shellcheck disable=SC2034
+datarootdir="/usr/share"
+. "$pkgdatadir/grub-mkconfig_lib"
+
+if [ "$(sed -n 's/^LANG=//p' /etc/locale.conf 2>/dev/null | cut -c1-2)" = "uk" ]; then
+    lts_label="резервне ядро"
+else
+    lts_label="fallback kernel"
+fi
+
+if [ "x${GRUB_DEVICE_UUID}" = "x" ] || [ "x${GRUB_DISABLE_LINUX_UUID}" = "xtrue" ]; then
+    root_device="${GRUB_DEVICE}"
+else
+    root_device="UUID=${GRUB_DEVICE_UUID}"
+fi
+
+cmdline="${GRUB_CMDLINE_LINUX} ${GRUB_CMDLINE_LINUX_DEFAULT}"
+if [ "x$(${grub_probe} --device "${GRUB_DEVICE}" --target=fs 2>/dev/null)" = "xbtrfs" ]; then
+    rootsubvol="$(make_system_path_relative_to_its_root /)"
+    rootsubvol="${rootsubvol#/}"
+    [ "x${rootsubvol}" != "x" ] && cmdline="rootflags=subvol=${rootsubvol} ${cmdline}"
+fi
+
+ucode=""
+for u in intel-ucode.img amd-ucode.img; do
+    [ -f "/boot/$u" ] && ucode="$ucode $(make_system_path_relative_to_its_root "/boot/$u")"
+done
+
+boot_access="$(prepare_grub_to_access_device "${GRUB_DEVICE_BOOT}" | sed 's/^/    /')"
+
+seen=" "
+# Основне ядро першим, далі LTS, далі інші (zen тощо), якщо є
+for path in /boot/vmlinuz-linux /boot/vmlinuz-linux-lts /boot/vmlinuz-*; do
+    [ -f "$path" ] || continue
+    case "$seen" in *" $path "*) continue ;; esac
+    seen="$seen $path "
+    kernel="${path#/boot/vmlinuz-}"
+    case "$kernel" in
+        linux) title="BlackVarmir Arch" ;;
+        linux-lts) title="BlackVarmir Arch · ${lts_label} (linux-lts)" ;;
+        *) title="BlackVarmir Arch · ${kernel}" ;;
+    esac
+    echo "Found kernel: /boot/vmlinuz-$kernel" >&2
+    cat <<GRUB
+menuentry '${title}' --class arch --class gnu-linux --class gnu --class os \$menuentry_id_option 'blackvarmir-${kernel}' {
+    insmod all_video
+    set gfxpayload=keep
+    insmod gzio
+${boot_access}
+    linux $(make_system_path_relative_to_its_root "/boot/vmlinuz-$kernel") root=${root_device} rw ${cmdline}
+    initrd${ucode} $(make_system_path_relative_to_its_root "/boot/initramfs-$kernel.img")
+}
+GRUB
+done
