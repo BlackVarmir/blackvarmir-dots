@@ -19,9 +19,9 @@ Singleton {
     readonly property var locale: Qt.locale(lang === "uk" ? "uk_UA" : "en_US")
 
     function t(key, ...args) {
-        const dict = Strings[lang] || Strings.uk;
+        const dict = Strings[lang] || Strings.en;
         let s = dict[key];
-        if (s === undefined) s = Strings.uk[key];
+        if (s === undefined) s = Strings.en[key];
         if (s === undefined) return key;
         for (let i = 0; i < args.length; i++)
             s = s.split("{" + i + "}").join(String(args[i]));
