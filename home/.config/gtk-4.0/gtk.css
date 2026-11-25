@@ -1,0 +1,52 @@
+/* Кольори Varmir для GTK 4 і libadwaita. Старі імена (@define-color) — для libadwaita до 1.6. */
+@define-color accent_color #34d399;
+@define-color accent_bg_color #10b981;
+@define-color accent_fg_color #04130d;
+
+@define-color window_bg_color #111113;
+@define-color window_fg_color #fafafa;
+@define-color view_bg_color #0f0f11;
+@define-color view_fg_color #fafafa;
+@define-color headerbar_bg_color #18181b;
+@define-color headerbar_fg_color #fafafa;
+@define-color headerbar_backdrop_color #111113;
+@define-color headerbar_border_color rgba(255, 255, 255, 0.08);
+@define-color sidebar_bg_color #0f0f11;
+@define-color sidebar_fg_color #fafafa;
+@define-color sidebar_backdrop_color #0f0f11;
+@define-color card_bg_color rgba(255, 255, 255, 0.04);
+@define-color card_fg_color #fafafa;
+@define-color popover_bg_color #18181b;
+@define-color popover_fg_color #fafafa;
+@define-color dialog_bg_color #18181b;
+@define-color dialog_fg_color #fafafa;
+@define-color borders rgba(255, 255, 255, 0.08);
+
+@define-color destructive_bg_color #ef4444;
+@define-color success_bg_color #22c55e;
+@define-color warning_bg_color #f59e0b;
+@define-color error_bg_color #ef4444;
+
+/* libadwaita 1.6 і новіші читають CSS-змінні */
+:root {
+    --accent-color: #34d399;
+    --accent-bg-color: #10b981;
+    --accent-fg-color: #04130d;
+    --window-bg-color: #111113;
+    --window-fg-color: #fafafa;
+    --view-bg-color: #0f0f11;
+    --view-fg-color: #fafafa;
+    --headerbar-bg-color: #18181b;
+    --headerbar-fg-color: #fafafa;
+    --headerbar-backdrop-color: #111113;
+    --sidebar-bg-color: #0f0f11;
+    --sidebar-fg-color: #fafafa;
+    --sidebar-backdrop-color: #0f0f11;
+    --card-bg-color: rgba(255, 255, 255, 0.04);
+    --popover-bg-color: #18181b;
+    --dialog-bg-color: #18181b;
+    --destructive-bg-color: #ef4444;
+    --success-bg-color: #22c55e;
+    --warning-bg-color: #f59e0b;
+    --error-bg-color: #ef4444;
+}

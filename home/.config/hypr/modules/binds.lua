@@ -20,6 +20,43 @@ bind(mod .. " + comma",        hl.dsp.exec_cmd("qs ipc call settings toggle"))
 bind(mod .. " + grave",        hl.dsp.focus({ workspace = "previous" }))
 
 ------------------------------------------------------------
+-- Alt + Tab (перемикач вікон у Quickshell)
+-- Поки тримають Alt, діє підмапа «alttab»: Tab / Shift + Tab / Q,
+-- а відпускання Alt переходить до вибраного вікна.
+------------------------------------------------------------
+local function alttab(cmd)
+    return hl.dsp.exec_cmd("qs ipc call alttab " .. cmd)
+end
+local function alttab_start(cmd)
+    return function()
+        hl.dispatch(alttab(cmd))
+        hl.dispatch(hl.dsp.submap("alttab"))
+    end
+end
+local function alttab_end(cmd)
+    return function()
+        hl.dispatch(alttab(cmd))
+        hl.dispatch(hl.dsp.submap("reset"))
+    end
+end
+
+bind("ALT + TAB",         alttab_start("next"))
+bind("ALT + SHIFT + TAB", alttab_start("prev"))
+bind("ALT + grave",       alttab_start("appNext")) -- лише вікна поточного застосунку
+
+hl.define_submap("alttab", function()
+    hl.bind("ALT + TAB",         alttab("next"),    { repeating = true })
+    hl.bind("ALT + SHIFT + TAB", alttab("prev"),    { repeating = true })
+    hl.bind("ALT + grave",       alttab("appNext"), { repeating = true })
+    hl.bind("ALT + Q",           alttab("close"))
+    hl.bind("ALT + RETURN",      alttab_end("commit"))
+    hl.bind("ALT + Escape",      alttab_end("cancel"))
+    hl.bind("Escape",            alttab_end("cancel"))
+    hl.bind("Alt_L", alttab_end("commit"), { release = true, transparent = true, ignore_mods = true })
+    hl.bind("Alt_R", alttab_end("commit"), { release = true, transparent = true, ignore_mods = true })
+end)
+
+------------------------------------------------------------
 -- Застосунки
 ------------------------------------------------------------
 bind(mod .. " + RETURN",         hl.dsp.exec_cmd(terminal))
@@ -81,8 +118,13 @@ bind("XF86AudioRaiseVolume",  hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AU
 bind("XF86AudioLowerVolume",  hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"),      media)
 bind("XF86AudioMute",         hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),     { locked = true })
 bind("XF86AudioMicMute",      hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"),   { locked = true })
+bind(mod .. " + SHIFT + M",   hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"),   { locked = true })
 bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%+"),                  media)
 bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%-"),                  media)
+-- Підсвітка клавіатури (на багатьох ноутбуках Fn-клавіша міняє її сама — індикатор покаже і це)
+bind("XF86KbdBrightnessUp",   hl.dsp.exec_cmd("brightnessctl -d '*::kbd_backlight' set +1"),     media)
+bind("XF86KbdBrightnessDown", hl.dsp.exec_cmd("brightnessctl -d '*::kbd_backlight' set 1-"),     media)
+bind("XF86KbdLightOnOff",     hl.dsp.exec_cmd([[d='*::kbd_backlight'; if [ "$(brightnessctl -d "$d" get)" -gt 0 ]; then brightnessctl -d "$d" set 0; else brightnessctl -d "$d" set 100%; fi]]), { locked = true })
 bind("XF86AudioPlay",         hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
 bind("XF86AudioPause",        hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
 bind("XF86AudioNext",         hl.dsp.exec_cmd("playerctl next"),       { locked = true })

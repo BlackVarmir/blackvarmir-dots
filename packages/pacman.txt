@@ -67,3 +67,7 @@ otf-geist-mono-nerd
 noto-fonts
 noto-fonts-emoji
 papirus-icon-theme
+
+# --- Вигляд GTK- і Qt-застосунків ---
+adw-gtk-theme
+qt6ct

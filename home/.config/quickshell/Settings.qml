@@ -111,7 +111,8 @@ Singleton {
         const out = [
             "# Згенеровано застосунком «Налаштування» BlackVarmir.",
             "general {",
-            "    lock_cmd = pidof hyprlock || hyprlock",
+            "    lock_cmd = qs ipc call lock lock || pidof hyprlock || hyprlock",
+            "    inhibit_sleep = 3",
             "    before_sleep_cmd = loginctl lock-session",
             "    after_sleep_cmd = hyprctl dispatch 'hl.dsp.dpms({ action = \"enable\" })'",
             "}"
@@ -169,6 +170,7 @@ Singleton {
         watchChanges: true
         onFileChanged: reload()
         onAdapterUpdated: writeAdapter()
+        onLoaded: if (idleFile.loaded && idleFile.text() !== settings.hypridleConf()) settings.writeHypridle()
         onLoadFailed: error => {
             if (error === FileViewError.FileNotFound) {
                 writeAdapter();
@@ -213,7 +215,13 @@ Singleton {
     }
 
     FileView { id: hyprUser; path: settings.dir + "/hyprland-user.lua" }
-    FileView { id: idleFile; path: settings.dir + "/hypridle.conf" }
+    // Після оновлення оболонки формат hypridle.conf міг змінитися (наприклад, новий екран
+    // блокування) — перегенеровуємо, якщо файл відрізняється від того, що дали б налаштування
+    FileView {
+        id: idleFile
+        path: settings.dir + "/hypridle.conf"
+        onLoaded: if (file.loaded && text() !== settings.hypridleConf()) settings.writeHypridle()
+    }
     FileView { id: sunsetFile; path: settings.dir + "/hyprsunset.conf" }
     FileView { id: wallFile; path: settings.dir + "/wallpaper" }
 }

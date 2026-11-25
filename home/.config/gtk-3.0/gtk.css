@@ -1,0 +1,28 @@
+/* Кольори Varmir поверх adw-gtk3-dark (ті самі імена, що й у libadwaita). */
+@define-color accent_color #34d399;
+@define-color accent_bg_color #10b981;
+@define-color accent_fg_color #04130d;
+
+@define-color window_bg_color #111113;
+@define-color window_fg_color #fafafa;
+@define-color view_bg_color #0f0f11;
+@define-color view_fg_color #fafafa;
+@define-color headerbar_bg_color #18181b;
+@define-color headerbar_fg_color #fafafa;
+@define-color headerbar_backdrop_color #111113;
+@define-color headerbar_border_color rgba(255, 255, 255, 0.08);
+@define-color sidebar_bg_color #0f0f11;
+@define-color sidebar_fg_color #fafafa;
+@define-color sidebar_backdrop_color #0f0f11;
+@define-color card_bg_color rgba(255, 255, 255, 0.04);
+@define-color card_fg_color #fafafa;
+@define-color popover_bg_color #18181b;
+@define-color popover_fg_color #fafafa;
+@define-color dialog_bg_color #18181b;
+@define-color dialog_fg_color #fafafa;
+@define-color borders rgba(255, 255, 255, 0.08);
+
+@define-color destructive_bg_color #ef4444;
+@define-color success_bg_color #22c55e;
+@define-color warning_bg_color #f59e0b;
+@define-color error_bg_color #ef4444;
