@@ -215,6 +215,8 @@ Singleton {
             // Оновлення: коли прочитано новини Arch і коли було останнє сповіщення
             property real newsRead: 0
             property string updatesNotified: ""
+            // Екран привітання вже показували
+            property bool welcomed: false
             property string kbToggle: "alt_shift"
             property int repeatDelay: 300
             property int repeatRate: 40
