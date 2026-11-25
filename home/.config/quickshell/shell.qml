@@ -1,4 +1,6 @@
 //@ pragma UseQApplication
+//@ pragma StateDir $BASE/blackvarmir
+//@ pragma IconTheme Papirus-Dark
 import QtQuick
 import Quickshell
 

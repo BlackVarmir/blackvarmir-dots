@@ -47,7 +47,9 @@ Singleton {
     readonly property int radiusTile: 14
     readonly property int radiusOverlay: 20
 
-    // Закріплені в доці застосунки (id .desktop-файлів без розширення).
+    // Закріплені в доці застосунки за замовчуванням (id .desktop-файлів без розширення).
+    // Використовуються лише при першому запуску; далі список живе в
+    // ~/.local/state/blackvarmir/dock.json і змінюється з меню дока.
     // Яких немає в системі — просто не показуються.
     readonly property var pinnedApps: [
         "kitty",
