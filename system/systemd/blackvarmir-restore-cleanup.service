@@ -1,0 +1,11 @@
+[Unit]
+Description=BlackVarmir: прибрати старий корінь після відновлення зі знімка
+After=local-fs.target
+ConditionPathIsMountPoint=/.snapshots
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/blackvarmir-restore-cleanup
+
+[Install]
+WantedBy=multi-user.target

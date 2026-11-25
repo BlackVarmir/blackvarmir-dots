@@ -10,6 +10,10 @@
 #   lid      <suspend|lock|ignore>
 #   avatar   <файл>             аватар для екрана входу (SDDM)
 #   realname <ім'я>
+#   snapshot-restore <номер>    відновити систему до знімка snapper (поточна зберігається знімком)
+#   snapshot-keep    <5|10|20>  скільки автоматичних знімків тримати
+#   snapshot-daily   <on|off>   щоденний знімок (таймлайн snapper)
+#   snapshot-updates <on|off>   знімок перед кожною транзакцією pacman (snap-pac)
 #
 # Кожен аргумент перевіряється за суворим шаблоном — довільних команд скрипт не виконує.
 
@@ -32,6 +36,29 @@ enable_locale() {
         echo "$loc UTF-8" >> /etc/locale.gen
     fi
     return 1
+}
+
+# Відновлення: поточний корінь стає знімком «Перед відновленням», а знімок N —
+# новим коренем (той самий підтом, що вказаний у /etc/fstab, тож завантажувач не змінюється).
+# Працює і зі звичайної системи, і після завантаження зі знімка (grub-btrfs).
+restore_snapshot() {
+    local num="$1" dev snapfs rootvol ts
+    [[ "$(findmnt -no FSTYPE /.snapshots 2>/dev/null)" == "btrfs" ]] || die "знімки snapper не налаштовано"
+    dev="$(findmnt -no SOURCE /.snapshots | sed 's/\[.*//')"
+    snapfs="$(findmnt -no FSROOT /.snapshots)"             # /@.snapshots або /@snapshots
+    rootvol="$(awk '$2 == "/" && $3 == "btrfs" { n = split($4, o, ","); for (i = 1; i <= n; i++) if (o[i] ~ /^subvol=/) { sub(/^subvol=\/?/, "", o[i]); print o[i] } }' /etc/fstab)"
+    [[ -n "$rootvol" && "$rootvol" =~ ^[A-Za-z0-9@._-]+$ ]] || die "не знайдено підтом кореня в /etc/fstab"
+    TOP="$(mktemp -d)"
+    mount -o subvolid=5 "$dev" "$TOP"
+    trap 'umount "$TOP" 2>/dev/null; rmdir "$TOP" 2>/dev/null' EXIT
+    [[ -d "$TOP${snapfs}/$num/snapshot" ]] || die "знімка $num немає"
+    # Поточний стан — знімком, щоб відновлення можна було скасувати так само
+    snapper -c root create -t single -c "" -d "Перед відновленням до #$num" --userdata "important=yes" || true
+    ts="$(date +%Y-%m-%d_%H-%M-%S)"
+    mv "$TOP/$rootvol" "$TOP/$rootvol-old-$ts"
+    btrfs subvolume snapshot "$TOP${snapfs}/$num/snapshot" "$TOP/$rootvol"
+    # Старий корінь (вже збережений знімком вище) прибере blackvarmir-restore-cleanup після перезавантаження
+    echo "$rootvol-old-$ts" >> "$TOP/.blackvarmir-restore-cleanup"
 }
 
 action="${1:-}"
@@ -79,6 +106,28 @@ EOF
         name="${1:-}"
         [[ -n "$name" && ${#name} -le 64 && "$name" != *[:,=$'\n']* ]] || die "невірне ім'я"
         usermod -c "$name" "$USER_NAME"
+        ;;
+    snapshot-restore)
+        num="${1:-}"
+        [[ "$num" =~ ^[0-9]+$ && "$num" -gt 0 ]] || die "невірний номер знімка"
+        restore_snapshot "$num"
+        ;;
+    snapshot-keep)
+        case "${1:-}" in 5|10|20) ;; *) die "очікується 5, 10 або 20" ;; esac
+        snapper -c root set-config "NUMBER_LIMIT=$1" "NUMBER_LIMIT_IMPORTANT=$1"
+        ;;
+    snapshot-daily)
+        case "${1:-}" in
+            on)  snapper -c root set-config TIMELINE_CREATE=yes TIMELINE_LIMIT_HOURLY=0 TIMELINE_LIMIT_DAILY=7 \
+                     TIMELINE_LIMIT_WEEKLY=0 TIMELINE_LIMIT_MONTHLY=0 TIMELINE_LIMIT_YEARLY=0
+                 systemctl enable --now snapper-timeline.timer ;;
+            off) snapper -c root set-config TIMELINE_CREATE=no ;;
+            *) die "очікується on або off" ;;
+        esac
+        ;;
+    snapshot-updates)
+        case "${1:-}" in on) v=True ;; off) v=False ;; *) die "очікується on або off" ;; esac
+        printf '# Згенеровано «Налаштуваннями» BlackVarmir\n[root]\nsnapshot = %s\n' "$v" > /etc/snap-pac.ini
         ;;
     *)
         die "невідома дія: $action"

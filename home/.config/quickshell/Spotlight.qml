@@ -240,7 +240,7 @@ PanelWindow {
     }
 
     // Розділи «Налаштувань»: шукаємо за назвою розділу обома мовами і за словом «налаштування»
-    readonly property var settingsSections: ["lang", "keyboard", "display", "appearance", "sound", "power", "user", "about"]
+    readonly property var settingsSections: ["lang", "keyboard", "display", "appearance", "sound", "power", "snapshots", "user", "about"]
     function searchSettings(q) {
         const needle = q.toLowerCase();
         const words = [Strings.uk["set.title"], Strings.en["set.title"]].map(w => w.toLowerCase());

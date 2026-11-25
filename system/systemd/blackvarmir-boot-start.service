@@ -1,0 +1,11 @@
+[Unit]
+Description=BlackVarmir: позначити початок завантаження для GRUB
+After=local-fs.target
+ConditionPathExists=/boot/grub/grubenv
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/blackvarmir-bootcheck start
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,10 @@
+#!/bin/sh
+# BlackVarmir: меню завантаження приховане, але з'являється само, якщо минуле
+# завантаження не дійшло до екрана входу (boot_success ставить blackvarmir-bootcheck).
+# Утримання Shift або Esc під час старту теж показує меню.
+cat <<'GRUB'
+if [ "${boot_success}" != "1" ]; then
+    set timeout_style=menu
+    set timeout=10
+fi
+GRUB

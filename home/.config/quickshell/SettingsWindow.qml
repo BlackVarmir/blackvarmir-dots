@@ -27,6 +27,7 @@ LazyLoader {
         Component { id: cSound; SetSound {} }
         Component { id: cPower; SetPower {} }
         Component { id: cUser; SetUser {} }
+        Component { id: cSnapshots; SetSnapshots {} }
         Component { id: cAbout; SetAbout {} }
 
         readonly property var sections: [
@@ -36,6 +37,7 @@ LazyLoader {
             { id: "appearance", glyph: "", label: Tr.t("set.appearance") },
             { id: "sound", glyph: "", label: Tr.t("set.sound") },
             { id: "power", glyph: "", label: Tr.t("set.power") },
+            { id: "snapshots", glyph: "\uf1da", label: Tr.t("set.snapshots") },
             { id: "user", glyph: "", label: Tr.t("set.user") },
             { id: "about", glyph: "", label: Tr.t("set.about") }
         ]
@@ -200,6 +202,7 @@ LazyLoader {
                         case "sound": return cSound;
                         case "power": return cPower;
                         case "user": return cUser;
+                        case "snapshots": return cSnapshots;
                         case "about": return cAbout;
                         default: return cLang;
                         }

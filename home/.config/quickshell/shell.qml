@@ -30,4 +30,8 @@ ShellRoot {
     CaptureToast {}
     Clipboard {}
     CalendarPopup {}
+
+    // Етап 7: оновлення і знімки системи
+    UpdatesPopup {}
+    SnapshotBanner {}
 }
