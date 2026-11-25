@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Shapes
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Wayland
@@ -11,19 +12,16 @@ Item {
     required property int wsId
     required property var overview
 
-    readonly property var ws: {
-        const list = Hyprland.workspaces.values;
-        for (let i = 0; i < list.length; i++)
-            if (list[i].id === wsId) return list[i];
-        return null;
-    }
+    readonly property var ws: Workspaces.find(wsId)
     readonly property var windows: overview.allWindows.filter(t => t.workspace?.id === wsId)
     readonly property bool isActive: overview.monitor?.activeWorkspace?.id === wsId
     readonly property bool isSelected: overview.selectedWs === wsId
     readonly property bool hovered: cardArea.containsMouse
     readonly property bool isDropTarget: drop.containsDrag
 
-    readonly property var names: [Tr.t("ws.1"), Tr.t("ws.2"), Tr.t("ws.3"), Tr.t("ws.4"), Tr.t("ws.5"), Tr.t("ws.6")]
+    // Порожній стіл наприкінці: картка «＋ Новий стіл»
+    readonly property bool isNew: Workspaces.trailing === wsId && !isActive
+    readonly property string title: isNew ? Tr.t("ws.new") : Workspaces.name(wsId)
 
     height: label.height + 10 + overview.cardH
 
@@ -38,13 +36,14 @@ Item {
             font.pixelSize: 15
         }
         Text {
-            text: card.isDropTarget ? Tr.t("overview.dropTarget", card.names[card.wsId - 1]) : card.names[card.wsId - 1]
-            color: card.isDropTarget ? Theme.emeraldLight : Theme.text
+            text: card.isDropTarget ? Tr.t("overview.dropTarget", card.title) : card.title
+            color: card.isDropTarget ? Theme.emeraldLight : (card.isNew ? Theme.textSubtle : Theme.text)
             font.family: Theme.font
             font.pixelSize: 15
             font.weight: Font.DemiBold
         }
         Text {
+            visible: !card.isNew
             text: card.windows.length === 0 ? Tr.t("overview.empty") : Plural.windows(card.windows.length)
             color: Theme.textSubtle
             font.family: Theme.font
@@ -75,8 +74,8 @@ Item {
         height: overview.cardH
         radius: 14
         clip: true
-        color: card.isDropTarget ? Qt.rgba(16 / 255, 185 / 255, 129 / 255, 0.1) : "#0d0d0f"
-        border.width: frame.visible ? 2 : 1
+        color: card.isDropTarget ? Qt.rgba(16 / 255, 185 / 255, 129 / 255, 0.1) : (card.isNew ? "transparent" : "#0d0d0f")
+        border.width: card.isNew ? 0 : (frame.visible ? 2 : 1)
         border.color: frame.visible ? "transparent" : (card.hovered ? Qt.rgba(1, 1, 1, 0.28) : Theme.hairline)
 
         // Наведення: підйом і легке збільшення
@@ -103,6 +102,30 @@ Item {
             sourceSize.width: 540
             asynchronous: true
             opacity: 0.9
+            visible: !card.isNew
+        }
+
+        // Пунктирна рамка картки «Новий стіл»
+        Shape {
+            anchors.fill: parent
+            visible: card.isNew
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                fillColor: "transparent"
+                strokeColor: card.hovered ? Qt.rgba(1, 1, 1, 0.4) : Qt.rgba(1, 1, 1, 0.22)
+                strokeWidth: 1.5
+                strokeStyle: ShapePath.DashLine
+                dashPattern: [4, 4]
+                startX: 14; startY: 1
+                PathLine { x: surface.width - 14; y: 1 }
+                PathArc { x: surface.width - 1; y: 14; radiusX: 13; radiusY: 13 }
+                PathLine { x: surface.width - 1; y: surface.height - 14 }
+                PathArc { x: surface.width - 14; y: surface.height - 1; radiusX: 13; radiusY: 13 }
+                PathLine { x: 14; y: surface.height - 1 }
+                PathArc { x: 1; y: surface.height - 14; radiusX: 13; radiusY: 13 }
+                PathLine { x: 1; y: 14 }
+                PathArc { x: 14; y: 1; radiusX: 13; radiusY: 13 }
+            }
         }
 
         // Пунктирна підсвітка цілі перетягування
