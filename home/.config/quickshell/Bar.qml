@@ -198,12 +198,15 @@ PanelWindow {
         }
     }
 
-    // ───────────── Право ─────────────
+    // ───────────── Право (клік відкриває центр керування) ─────────────
     Island {
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         padding: 12
         spacing: 14
+        clickable: true
+        highlighted: Panels.controlOpen
+        onClicked: Panels.toggleControl()
 
         // Розкладка
         Rectangle {
@@ -256,7 +259,7 @@ PanelWindow {
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
-                onClicked: if (volume.audio) volume.audio.muted = !volume.audio.muted
+                onClicked: Panels.toggleControl()
                 onWheel: wheel => {
                     if (!volume.audio) return;
                     const step = wheel.angleDelta.y > 0 ? 0.05 : -0.05;
@@ -292,6 +295,31 @@ PanelWindow {
                 color: Theme.text
                 font.family: Theme.font
                 font.pixelSize: 13
+            }
+        }
+
+        // Сповіщення: крапка, якщо є непрочитані; перекреслений дзвінок у режимі «Не турбувати»
+        Item {
+            anchors.verticalCenter: parent.verticalCenter
+            width: 16
+            height: 16
+
+            Text {
+                anchors.centerIn: parent
+                text: NotifStore.dnd ? "\uf1f6" : "\uf0f3"
+                color: Theme.textMuted
+                font.family: Theme.mono
+                font.pixelSize: 14
+            }
+            Rectangle {
+                visible: NotifStore.count > 0 && !NotifStore.dnd
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.rightMargin: -2
+                width: 6
+                height: 6
+                radius: 3
+                color: Theme.emerald
             }
         }
     }

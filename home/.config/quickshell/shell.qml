@@ -12,5 +12,7 @@ ShellRoot {
     }
 
     Spotlight {}
+    Overview {}
+    ControlCenter {}
     Notifications {}
 }

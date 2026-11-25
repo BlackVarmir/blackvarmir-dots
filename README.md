@@ -3,7 +3,7 @@
 Arch Linux + Hyprland у стилі **Varmir Dark Glass**: темне полотно, градієнт смарагд → ціан, скляні панелі з розмиттям, шрифт Geist. Головне — швидкість.
 
 - **Hyprland 0.55+** з конфігом у форматі Lua
-- **Quickshell**: панель-«острівці», Spotlight, сповіщення. Усе на подіях, без опитування
+- **Quickshell**: панель-«острівці», Spotlight, огляд столів із доком, центр керування, сповіщення. Усе на подіях, без опитування
 - **hyprlock / hypridle**: блокування з живим розмитим робочим столом
 - **kitty + fish + starship** у тій самій палітрі
 - Тонке налаштування під ноутбук з Intel + Nvidia (Dell Precision 7530): рендер на Intel, Nvidia для CUDA
@@ -34,7 +34,9 @@ cd ~/blackvarmir-dots
 | `Super + Q` | Закрити вікно |
 | `Super + 1…6` | Робочий стіл |
 | `Super + Shift + 1…6` | Перенести вікно на стіл |
-| `Super + Tab` | Попередній стіл (пізніше — огляд столів) |
+| `Super + Tab` | Огляд столів із доком: пошук, перетягування вікон між столами |
+| `Super + N` | Центр керування (або клік по правому «острівцю» панелі) |
+| `` Super + ` `` | Попередній стіл |
 | `Super + ← → ↑ ↓` | Фокус · з `Shift` — поміняти вікна місцями |
 | `Super + F` / `Super + M` | На весь екран / розгорнути |
 | `Super + Shift + Space` | Зробити вікно плаваючим |
@@ -57,7 +59,8 @@ home/.config/
   hypr/modules/*.lua        env · monitors · look · animations · input · rules · binds · autostart
   hypr/hyprlock.conf        екран блокування
   hypr/hypridle.conf        бездіяльність і сон
-  quickshell/               оболонка: Theme · Bar · Island · Spotlight · Notifications · Panels
+  quickshell/               оболонка: Theme (кольори, закріплені в доці застосунки) · Bar · Spotlight ·
+                            Overview · ControlCenter (+ підменю Cc*) · Notifications · NotifStore · Sys
   kitty/ fish/ starship.toml
 system/etc/                 zram і sysctl
 assets/wallpapers/          шпалери Varmir Aura
@@ -68,7 +71,8 @@ docs/PERFORMANCE.md         чеклист продуктивності
 
 ## Далі
 
-- [ ] Огляд робочих столів із доком (`Super + Tab`)
-- [ ] Центр керування: Wi-Fi, Bluetooth, звук, яскравість, плеєр, історія сповіщень (`Super + N`)
+- [x] Огляд робочих столів із доком (`Super + Tab`)
+- [x] Центр керування: Wi-Fi, Bluetooth, звук, яскравість, плеєр, живлення, історія сповіщень (`Super + N`)
+- [ ] Закріплення застосунків у доці правою кнопкою (поки що список у `quickshell/Theme.qml`)
 - [ ] Тема SDDM у тому ж стилі
 - [ ] Пошук файлів у Spotlight через `plocate`

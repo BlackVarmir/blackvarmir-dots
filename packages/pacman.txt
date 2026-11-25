@@ -29,6 +29,7 @@ xdg-desktop-portal-gtk
 hyprlock
 hypridle
 hyprpolkitagent
+hyprsunset
 qt6-wayland
 sddm
 
