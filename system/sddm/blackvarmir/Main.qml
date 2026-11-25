@@ -125,7 +125,7 @@ Rectangle {
             onTriggered: {
                 const now = new Date();
                 clockText.text = Qt.formatTime(now, "HH:mm");
-                dateText.text = now.toLocaleDateString(Qt.locale("uk_UA"), "dddd · d MMMM").toUpperCase();
+                dateText.text = now.toLocaleDateString(Qt.locale("en_US"), "dddd · d MMMM").toUpperCase();
             }
         }
     }
