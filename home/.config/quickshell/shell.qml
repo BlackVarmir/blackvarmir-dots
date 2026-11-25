@@ -18,4 +18,7 @@ ShellRoot {
     ControlCenter {}
     Notifications {}
     SettingsWindow {}
+    Osd {}
+    AltTab {}
+    Lock {}
 }

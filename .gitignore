@@ -1,0 +1,10 @@
+# ~/.config/<тека> — симлінки на теки цього репозиторію, тож застосунки пишуть сюди
+# свої файли. Тримаємо в git лише наші.
+home/.config/gtk-3.0/*
+!home/.config/gtk-3.0/settings.ini
+!home/.config/gtk-3.0/gtk.css
+home/.config/gtk-4.0/*
+!home/.config/gtk-4.0/settings.ini
+!home/.config/gtk-4.0/gtk.css
+# qt6ct.conf створює install.sh (у ньому повний шлях до палітри)
+home/.config/qt6ct/qt6ct.conf

@@ -20,6 +20,9 @@ hl.on("hyprland.start", function()
     -- Нічне світло за розкладом (керується з налаштувань і центру керування)
     hl.exec_cmd("[ -f " .. cfg .. "/hyprsunset.conf ] && exec hyprsunset -c " .. cfg .. "/hyprsunset.conf || exec hyprsunset")
 
+    -- Курсор Bibata і для самого Hyprland
+    hl.exec_cmd("hyprctl setcursor Bibata-Modern-Classic 24")
+
     -- Агент автентифікації (вікно пароля для pkexec, налаштувань системи тощо)
     hl.exec_cmd("systemctl --user start hyprpolkitagent")
 

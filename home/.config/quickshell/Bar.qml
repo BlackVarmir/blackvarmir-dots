@@ -33,21 +33,7 @@ PanelWindow {
 
     // Стан, що потрібен кільком острівцям
     readonly property var monitor: Hyprland.monitorFor(bar.screen)
-    property string kbLayout: "EN"
-
-    Connections {
-        target: Hyprland
-        function onRawEvent(event) {
-            // activelayout>>назва_клавіатури,Назва розкладки
-            if (event.name === "activelayout") {
-                const name = event.data.split(",").pop();
-                const known = { "English": "EN", "Ukrainian": "UK", "Russian": "RU", "Polish": "PL", "German": "DE", "French": "FR", "Spanish": "ES", "Czech": "CZ" };
-                let code = name.slice(0, 2).toUpperCase();
-                for (const k in known) if (name.indexOf(k) !== -1) { code = known[k]; break; }
-                bar.kbLayout = code;
-            }
-        }
-    }
+    readonly property string kbLayout: Layouts.find(Layouts.current).short
 
     PwObjectTracker {
         objects: [Pipewire.defaultAudioSink]

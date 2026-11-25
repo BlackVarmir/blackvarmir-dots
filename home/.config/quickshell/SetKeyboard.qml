@@ -9,16 +9,7 @@ SetPage {
     title: Tr.t("set.keyboard")
     subtitle: Tr.t("kb.subtitle")
 
-    readonly property var catalog: [
-        { value: "us", label: "English (US)" },
-        { value: "gb", label: "English (UK)" },
-        { value: "ua", label: "Українська" },
-        { value: "ru", label: "Русский" },
-        { value: "pl", label: "Polski" },
-        { value: "de", label: "Deutsch" },
-        { value: "fr", label: "Français" },
-        { value: "cz", label: "Čeština" }
-    ]
+    readonly property var catalog: Layouts.catalog
     readonly property var layouts: Array.from(Settings.data.kbLayouts)
 
     function labelOf(code) {

@@ -66,6 +66,8 @@ hl.config({
         animate_manual_resizes   = false,
         key_press_enables_dpms   = true,
         mouse_move_enables_dpms  = true,
+        -- Якщо екран блокування (Quickshell) впаде, його можна перезапустити, не втративши сеанс
+        allow_session_lock_restore = true,
         -- Живий розмитий робочий стіл під екраном блокування (hyprlock)
         session_lock_xray = true,
         session_lock_blur = true,

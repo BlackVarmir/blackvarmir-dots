@@ -208,12 +208,35 @@ mkdir -p "$HOME/.local/share/blackvarmir/wallpapers" "$HOME/Pictures/Screenshots
 cp -u "$REPO_DIR"/assets/wallpapers/* "$HOME/.local/share/blackvarmir/wallpapers/"
 xdg-user-dirs-update
 
-# Темна тема, іконки і шрифти для GTK-застосунків
+# Темна тема, іконки, шрифти і курсор для GTK-застосунків. color-scheme через портал
+# бачать і Firefox, і Electron-застосунки.
 if command -v gsettings >/dev/null; then
     gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+    gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark'
     gsettings set org.gnome.desktop.interface icon-theme 'Papirus-Dark'
     gsettings set org.gnome.desktop.interface font-name 'Geist 11'
     gsettings set org.gnome.desktop.interface monospace-font-name 'GeistMono Nerd Font 11'
+    gsettings set org.gnome.desktop.interface cursor-theme 'Bibata-Modern-Classic'
+    gsettings set org.gnome.desktop.interface cursor-size 24
+    gsettings set org.gnome.desktop.wm.preferences button-layout ':close'
+fi
+
+# Qt: стиль Fusion з палітрою Varmir. Шлях до палітри має бути повним, тому файл
+# пишемо тут, а не тримаємо в репозиторії.
+if [[ ! -f "$HOME/.config/qt6ct/qt6ct.conf" ]]; then
+    cat > "$HOME/.config/qt6ct/qt6ct.conf" <<QT
+[Appearance]
+color_scheme_path=$HOME/.config/qt6ct/colors/Varmir.conf
+custom_palette=true
+icon_theme=Papirus-Dark
+standard_dialogs=default
+style=Fusion
+
+[Fonts]
+fixed="GeistMono Nerd Font,11,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"
+general="Geist,11,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"
+QT
+    info "→ ~/.config/qt6ct/qt6ct.conf"
 fi
 
 # ── 7. fish як оболонка за замовчуванням ─────────────────────────

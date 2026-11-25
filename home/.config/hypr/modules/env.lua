@@ -23,8 +23,12 @@ if exists("/dev/dri/igpu") then
 end
 
 -- Курсор
+hl.env("XCURSOR_THEME", "Bibata-Modern-Classic")
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
+
+-- Qt-застосунки беруть палітру Varmir, шрифти і значки з qt6ct
+hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
 
 -- Нативний Wayland для Qt і Electron (VS Code, Discord, Obsidian тощо)
 hl.env("QT_QPA_PLATFORM", "wayland;xcb")

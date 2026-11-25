@@ -23,6 +23,20 @@ Singleton {
         "time.m": "{0} хв",
         "plural.windows": "вікно|вікна|вікон",
         "plural.updates": "оновлення|оновлення|оновлень",
+        "plural.notifications": "сповіщення|сповіщення|сповіщень",
+
+        // Індикатори, Alt + Tab, екран блокування
+        "osd.off": "Вимк.",
+        "at.next": "далі",
+        "at.prev": "назад",
+        "at.close": "закрити вікно",
+        "at.release": "відпустіть — перейти",
+        "lock.password": "Пароль",
+        "lock.hint": "Введіть пароль, щоб розблокувати",
+        "lock.checking": "Перевірка…",
+        "lock.wrong": "Невірний пароль · спроба {0}",
+        "lock.maxTries": "Забагато спроб. Зачекайте і спробуйте знову",
+        "lock.pamError": "Не вдалося перевірити пароль (PAM)",
 
         // Bluetooth
         "bt.connecting": "З'єднання…",
@@ -305,6 +319,19 @@ Singleton {
         "time.m": "{0} min",
         "plural.windows": "window|windows",
         "plural.updates": "update|updates",
+        "plural.notifications": "notification|notifications",
+
+        "osd.off": "Off",
+        "at.next": "next",
+        "at.prev": "back",
+        "at.close": "close window",
+        "at.release": "release to switch",
+        "lock.password": "Password",
+        "lock.hint": "Enter your password to unlock",
+        "lock.checking": "Checking…",
+        "lock.wrong": "Wrong password · attempt {0}",
+        "lock.maxTries": "Too many attempts. Wait and try again",
+        "lock.pamError": "Couldn't check the password (PAM)",
 
         "bt.connecting": "Connecting…",
         "bt.connected": "Connected",
