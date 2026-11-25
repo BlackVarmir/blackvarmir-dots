@@ -51,9 +51,16 @@ Scope {
         function onVolumeChanged() { osd.show("mic"); }
         function onMutedChanged() { osd.show("mic"); }
     }
+    // Розкладку показуємо із затримкою 200 мс: якщо це був Shift з Alt + Shift + Tab,
+    // перемикач вікон поверне мову, і індикатор не блимне
+    Timer { id: layoutDelay; interval: 200; onTriggered: osd.show("layout") }
     Connections {
         target: Layouts
-        function onSwitched() { osd.show("layout"); }
+        function onSwitched() { layoutDelay.restart(); }
+        function onReverted() {
+            layoutDelay.stop();
+            if (osd.kind === "layout") osd.shown = false;
+        }
     }
 
     Process {

@@ -20,6 +20,17 @@ bind(mod .. " + comma",        hl.dsp.exec_cmd("qs ipc call settings toggle"))
 bind(mod .. " + grave",        hl.dsp.focus({ workspace = "previous" }))
 
 ------------------------------------------------------------
+-- Розкладка клавіатури: Alt + Shift у будь-якому порядку.
+-- Прив'язки глобальні, тож у підмапі «alttab» (поки тримають Alt після Tab) вони
+-- не діють. Інший спосіб перемикання ставить застосунок «Налаштування»
+-- (~/.config/blackvarmir/hyprland-user.lua знімає ці прив'язки і ставить свої).
+------------------------------------------------------------
+local next_layout = hl.dsp.exec_cmd("hyprctl switchxkblayout all next")
+for _, keys in ipairs({ "ALT + Shift_L", "ALT + Shift_R", "SHIFT + Alt_L", "SHIFT + Alt_R" }) do
+    bind(keys, next_layout)
+end
+
+------------------------------------------------------------
 -- Alt + Tab (перемикач вікон у Quickshell)
 -- Поки тримають Alt, діє підмапа «alttab»: Tab / Shift + Tab / Q,
 -- а відпускання Alt переходить до вибраного вікна.

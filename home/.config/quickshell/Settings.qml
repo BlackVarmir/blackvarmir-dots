@@ -36,10 +36,12 @@ Singleton {
     }
 
     // ───────────── Hyprland ─────────────
-    readonly property var toggles: ({
-        alt_shift: "grp:alt_shift_toggle",
-        ctrl_shift: "grp:ctrl_shift_toggle",
-        caps: "grp:caps_toggle"
+    // Перемикання розкладки. Alt + Shift і Ctrl + Shift — прив'язками Hyprland (не діють
+    // під час Alt + Tab), Caps Lock — опцією xkb (він ні з чим не перетинається).
+    readonly property var toggleBinds: ({
+        alt_shift: ["ALT + Shift_L", "ALT + Shift_R", "SHIFT + Alt_L", "SHIFT + Alt_R"],
+        ctrl_shift: ["CTRL + Shift_L", "CTRL + Shift_R", "SHIFT + Control_L", "SHIFT + Control_R"],
+        caps: []
     })
     // Базові швидкості анімацій (див. hypr/modules/animations.lua)
     readonly property var animLeaves: [
@@ -61,8 +63,15 @@ Singleton {
             "-- Не редагуй вручну: файл перезаписується при кожній зміні налаштувань.",
             ""
         ];
-        const toggle = toggles[d.kbToggle] || toggles.alt_shift;
-        lines.push(`hl.config({ input = { kb_layout = ${luaString(Array.from(d.kbLayouts).join(","))}, kb_options = ${luaString(toggle)}, repeat_delay = ${Math.round(d.repeatDelay)}, repeat_rate = ${Math.round(d.repeatRate)} } })`);
+        const kind = toggleBinds[d.kbToggle] ? d.kbToggle : "alt_shift";
+        const xkb = kind === "caps" ? "grp:caps_toggle" : "";
+        lines.push(`hl.config({ input = { kb_layout = ${luaString(Array.from(d.kbLayouts).join(","))}, kb_options = ${luaString(xkb)}, repeat_delay = ${Math.round(d.repeatDelay)}, repeat_rate = ${Math.round(d.repeatRate)} } })`);
+        // Спершу зняти всі варіанти (і стандартний з binds.lua), потім поставити вибраний —
+        // так повторне застосування не подвоює прив'язки
+        for (const k in toggleBinds)
+            for (const keys of toggleBinds[k]) lines.push(`hl.unbind(${luaString(keys)})`);
+        for (const keys of toggleBinds[kind])
+            lines.push(`hl.bind(${luaString(keys)}, hl.dsp.exec_cmd("hyprctl switchxkblayout all next"))`);
 
         const border = d.gradientBorder
             ? '{ colors = { "rgba(10b981ff)", "rgba(22d3eeff)" }, angle = 45 }'
@@ -158,6 +167,12 @@ Singleton {
     }
 
     // Перший запуск: створити файли з поточними значеннями
+    function refreshGenerated() {
+        if (!file.loaded) return;
+        if (hyprUser.loaded && hyprUser.text() !== hyprlandLua()) writeHyprland();
+        if (idleFile.loaded && idleFile.text() !== hypridleConf()) writeHypridle();
+    }
+
     function writeAll() {
         hyprUser.setText(hyprlandLua());
         idleFile.setText(hypridleConf());
@@ -170,7 +185,7 @@ Singleton {
         watchChanges: true
         onFileChanged: reload()
         onAdapterUpdated: writeAdapter()
-        onLoaded: if (idleFile.loaded && idleFile.text() !== settings.hypridleConf()) settings.writeHypridle()
+        onLoaded: settings.refreshGenerated()
         onLoadFailed: error => {
             if (error === FileViewError.FileNotFound) {
                 writeAdapter();
@@ -214,13 +229,19 @@ Singleton {
         }
     }
 
-    FileView { id: hyprUser; path: settings.dir + "/hyprland-user.lua" }
+    // Як і з hypridle.conf: файл від старішої версії оболонки (наприклад, з перемиканням
+    // розкладки через xkb) перегенеровується і застосовується одразу
+    FileView {
+        id: hyprUser
+        path: settings.dir + "/hyprland-user.lua"
+        onLoaded: settings.refreshGenerated()
+    }
     // Після оновлення оболонки формат hypridle.conf міг змінитися (наприклад, новий екран
     // блокування) — перегенеровуємо, якщо файл відрізняється від того, що дали б налаштування
     FileView {
         id: idleFile
         path: settings.dir + "/hypridle.conf"
-        onLoaded: if (file.loaded && text() !== settings.hypridleConf()) settings.writeHypridle()
+        onLoaded: settings.refreshGenerated()
     }
     FileView { id: sunsetFile; path: settings.dir + "/hyprsunset.conf" }
     FileView { id: wallFile; path: settings.dir + "/wallpaper" }
