@@ -179,6 +179,14 @@ SetPage {
                     onToggled: v => Settings.set("gradientBorder", v)
                 }
             }
+            SetRow {
+                label: Tr.t("wx.inBar")
+                hint: Tr.t("look.weatherInBarHint")
+                Toggle {
+                    checked: Settings.data.weatherInBar
+                    onToggled: v => Settings.set("weatherInBar", v)
+                }
+            }
         }
     }
 }

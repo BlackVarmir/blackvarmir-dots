@@ -73,8 +73,7 @@ end)
 bind(mod .. " + RETURN",         hl.dsp.exec_cmd(terminal))
 bind(mod .. " + SHIFT + RETURN", hl.dsp.exec_cmd(terminal .. " --class kitty-float"))
 bind(mod .. " + E",              hl.dsp.exec_cmd("nautilus --new-window"))
-bind(mod .. " + V",              hl.dsp.exec_cmd(
-    terminal .. " --class kitty-float -e sh -c 'cliphist list | fzf --no-sort --reverse | cliphist decode | wl-copy'"))
+bind(mod .. " + V",              hl.dsp.exec_cmd("qs ipc call clipboard toggle"))
 
 ------------------------------------------------------------
 -- Вікна
@@ -119,9 +118,10 @@ bind(mod .. " + SHIFT + R",   hl.dsp.reload_config())
 bind(mod .. " + SHIFT + E",   hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"))
 
 -- Знімки екрана: область → буфер обміну і ~/Pictures/Screenshots
-local shot = "mkdir -p ~/Pictures/Screenshots && grim %s - | tee ~/Pictures/Screenshots/$(date +%%Y-%%m-%%d_%%H-%%M-%%S).png | wl-copy"
-bind("Print",         hl.dsp.exec_cmd(string.format(shot, '-g "$(slurp -d)"')))
-bind("SHIFT + Print", hl.dsp.exec_cmd(string.format(shot, "")))
+-- Print — панель знімків і запису (область / вікно / екран); під час запису — зупинити.
+-- Shift + Print — одразу весь екран з фокусом. Файли: ~/Pictures/Screenshots, ~/Videos/Recordings
+bind("Print",         hl.dsp.exec_cmd("qs ipc call capture open"))
+bind("SHIFT + Print", hl.dsp.exec_cmd("qs ipc call capture screen"))
 
 -- Мультимедійні клавіші ноутбука (працюють і на заблокованому екрані)
 local media = { locked = true, repeating = true }

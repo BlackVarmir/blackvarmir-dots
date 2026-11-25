@@ -179,6 +179,8 @@ SetPage {
                     }
                 }
             }
+
+            WeatherCard {}
         }
 
         SetCard {

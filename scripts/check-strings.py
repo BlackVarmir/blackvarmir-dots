@@ -12,7 +12,9 @@ QS = pathlib.Path(__file__).resolve().parent.parent / "home/.config/quickshell"
 
 DYNAMIC = {f"set.{s}" for s in ("lang", "keyboard", "display", "appearance", "sound", "power", "user", "about")} | {
     f"about.{s}" for s in ("device", "cpu", "memory", "gpu", "disk", "kernel", "hyprland", "quickshell", "uptime")
-}
+} | {f"clip.{s}" for s in ("text", "link", "color", "image")} | {
+    f"sys.{s}" for s in ("poweroff", "reboot", "suspend", "logout", "lock", "screenshot", "record")
+} | {f"wx.src.{s}" for s in ("manual", "wifi", "ip")} | {"wx.windMs", "wx.windMph"}
 
 used = set(DYNAMIC)
 for f in QS.glob("*.qml"):

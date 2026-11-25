@@ -10,12 +10,18 @@ import Quickshell.Io
 //   qs ipc call overview toggle    — Super + Tab
 //   qs ipc call control toggle     — Super + N
 //   qs ipc call settings toggle    — Super + ,   (qs ipc call settings show display — одразу розділ)
+//   qs ipc call clipboard toggle   — Super + V
+//   qs ipc call calendar toggle    — клік по годиннику
+//   qs ipc call capture …          — Print (див. Capture.qml)
 Singleton {
     id: panels
 
     property bool spotlightOpen: false
     property bool overviewOpen: false
     property bool controlOpen: false
+    property bool clipboardOpen: false
+    property bool calendarOpen: false
+    property bool captureOpen: false
     // Вікно налаштувань — звичайне вікно, тож оверлеї при його відкритті просто ховаються
     property bool settingsOpen: false
     property string settingsSection: "lang"
@@ -30,11 +36,24 @@ Singleton {
         spotlightOpen = false;
         overviewOpen = false;
         controlOpen = false;
+        clipboardOpen = false;
+        calendarOpen = false;
+        captureOpen = false;
     }
 
     function toggleSpotlight() { const v = !spotlightOpen; closeAll(); spotlightOpen = v; }
     function toggleOverview()  { const v = !overviewOpen;  closeAll(); overviewOpen = v; }
     function toggleControl()   { const v = !controlOpen;   closeAll(); controlOpen = v; }
+    // Вимкнути / перезавантажити з Spotlight: центр керування з 10-секундним відліком
+    property string powerRequest: ""
+    function openPower(action) {
+        closeAll();
+        controlOpen = true;
+        powerRequest = action;
+    }
+
+    function toggleClipboard() { const v = !clipboardOpen; closeAll(); clipboardOpen = v; }
+    function toggleCalendar()  { const v = !calendarOpen;  closeAll(); calendarOpen = v; }
 
     IpcHandler {
         target: "spotlight"
@@ -55,6 +74,19 @@ Singleton {
         function toggle(): void { if (panels.settingsOpen) panels.settingsOpen = false; else panels.openSettings(""); }
         function show(section: string): void { panels.openSettings(section); }
         function close(): void { panels.settingsOpen = false; }
+    }
+
+    IpcHandler {
+        target: "clipboard"
+        function toggle(): void { panels.toggleClipboard(); }
+        function open(): void { panels.closeAll(); panels.clipboardOpen = true; }
+        function close(): void { panels.clipboardOpen = false; }
+    }
+
+    IpcHandler {
+        target: "calendar"
+        function toggle(): void { panels.toggleCalendar(); }
+        function close(): void { panels.calendarOpen = false; }
     }
 
     IpcHandler {

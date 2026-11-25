@@ -55,6 +55,10 @@ wl-clipboard
 cliphist
 grim
 slurp
+wf-recorder
+satty
+wtype
+curl
 brightnessctl
 playerctl
 nautilus
