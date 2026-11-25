@@ -102,6 +102,30 @@ Scope {
                         asynchronous: true
                         cache: false
                     }
+
+                    // Перетягнути мініатюру (і знімок, і відео) у застосунок — як файл
+                    Item {
+                        id: dragProxy
+                        anchors.fill: parent
+                        Drag.active: dragArea.drag.active
+                        Drag.dragType: Drag.Automatic
+                        Drag.supportedActions: Qt.CopyAction
+                        Drag.mimeData: ({ "text/uri-list": "file://" + Capture.lastFile + "\r\n" })
+                        Drag.imageSourceSize: Qt.size(180, 112)
+                        Drag.imageSource: Capture.lastIsVideo || !Capture.lastFile ? "" : "file://" + Capture.lastFile
+                        Drag.onDragFinished: dropAction => { if (dropAction !== Qt.IgnoreAction) toast.shown = false; }
+                    }
+                    MouseArea {
+                        id: dragArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                        drag.target: dragProxy
+                        // Після перетягування повернути «привид» на місце
+                        onReleased: { dragProxy.x = 0; dragProxy.y = 0; }
+                        onEntered: hideTimer.stop()
+                        onExited: hideTimer.restart()
+                    }
                     Text {
                         visible: Capture.lastIsVideo
                         anchors.centerIn: parent

@@ -54,6 +54,8 @@ Singleton {
         "cap.videoSaved": "Запис збережено",
         "cap.edit": "Редагувати",
         "cap.folder": "Тека",
+        "sp.emojiInsert": "вставити",
+        "look.weatherInBarHint": "Значок і температура біля годинника",
 
         // Буфер обміну
         "clip.search": "Пошук у буфері",
@@ -424,6 +426,8 @@ Singleton {
         "cap.videoSaved": "Recording saved",
         "cap.edit": "Edit",
         "cap.folder": "Folder",
+        "sp.emojiInsert": "insert",
+        "look.weatherInBarHint": "Icon and temperature next to the clock",
 
         "clip.search": "Search clipboard",
         "clip.pinned": "PINNED",

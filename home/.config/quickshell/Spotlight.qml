@@ -38,6 +38,9 @@ PanelWindow {
     property string query: ""
     property int current: 0
     readonly property int maxResults: 8
+    // Емодзі (префікс «:») показуються сіткою 8 × 4, як у дизайні
+    readonly property bool emojiMode: query.trim().startsWith(":")
+    readonly property int emojiColumns: 8
     readonly property string home: Quickshell.env("HOME") || ""
 
     // Файли з plocate: приходять асинхронно, трохи пізніше за застосунки
@@ -81,7 +84,7 @@ PanelWindow {
             return fileResults.slice(0, maxResults);
         }
         if (q.startsWith(":")) {
-            return Emoji.search(q.slice(1), maxResults).map(e => ({
+            return Emoji.search(q.slice(1), emojiColumns * 4).map(e => ({
                 kind: "emoji", title: Tr.lang === "uk" && e.uk ? e.uk : e.en, subtitle: Tr.lang === "uk" ? e.en : e.uk,
                 glyph: e.char, payload: e.char
             }));
@@ -392,6 +395,10 @@ PanelWindow {
                     Keys.onPressed: event => {
                         if (event.key === Qt.Key_Escape) {
                             Panels.spotlightOpen = false;
+                        } else if (spotlight.emojiMode && (event.key === Qt.Key_Left || event.key === Qt.Key_Right) && spotlight.results.length > 0) {
+                            spotlight.current = Math.max(0, Math.min(spotlight.results.length - 1, spotlight.current + (event.key === Qt.Key_Right ? 1 : -1)));
+                        } else if (spotlight.emojiMode && (event.key === Qt.Key_Down || event.key === Qt.Key_Up) && spotlight.results.length > 0) {
+                            spotlight.current = Math.max(0, Math.min(spotlight.results.length - 1, spotlight.current + (event.key === Qt.Key_Down ? 1 : -1) * spotlight.emojiColumns));
                         } else if (event.key === Qt.Key_Down || (event.key === Qt.Key_Tab && !(event.modifiers & Qt.ShiftModifier))) {
                             spotlight.current = Math.min(spotlight.current + 1, spotlight.results.length - 1);
                         } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Backtab) {
@@ -421,11 +428,71 @@ PanelWindow {
                 visible: spotlight.results.length > 0
             }
 
+            // Емодзі: сітка, під нею назва вибраного
+            Item {
+                visible: spotlight.emojiMode && spotlight.results.length > 0
+                width: parent.width
+                height: visible ? emojiGrid.height + emojiName.height + 28 : 0
+
+                Grid {
+                    id: emojiGrid
+                    x: 18
+                    y: 14
+                    columns: spotlight.emojiColumns
+                    spacing: 6
+                    readonly property real cell: (parent.width - 36 - spacing * (columns - 1)) / columns
+
+                    Repeater {
+                        model: spotlight.emojiMode ? spotlight.results : []
+                        Rectangle {
+                            required property var modelData
+                            required property int index
+                            readonly property bool selected: index === spotlight.current
+                            width: emojiGrid.cell
+                            height: 52
+                            radius: 12
+                            color: selected ? Theme.accentSoft : emojiArea.containsMouse ? Theme.hover : "transparent"
+                            border.width: selected ? 2 : 0
+                            border.color: Theme.emerald
+                            Text {
+                                anchors.centerIn: parent
+                                text: parent.modelData.glyph
+                                font.pixelSize: 28
+                            }
+                            MouseArea {
+                                id: emojiArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onEntered: spotlight.current = parent.index
+                                onClicked: spotlight.activate(parent.index, false)
+                            }
+                        }
+                    }
+                }
+                Text {
+                    id: emojiName
+                    x: 22
+                    anchors.top: emojiGrid.bottom
+                    anchors.topMargin: 10
+                    width: parent.width - 44
+                    elide: Text.ElideRight
+                    text: {
+                        const r = spotlight.results[spotlight.current];
+                        return r ? r.title + (r.subtitle ? " · " + r.subtitle : "") + "    ⏎ " + Tr.t("sp.emojiInsert") : "";
+                    }
+                    color: Theme.textMuted
+                    font.family: Theme.font
+                    font.pixelSize: 12
+                }
+            }
+
             // Результати
             ListView {
                 id: list
+                visible: !spotlight.emojiMode
                 width: parent.width
-                height: contentHeight + (count > 0 ? 16 : 0)
+                height: visible ? contentHeight + (count > 0 ? 16 : 0) : 0
                 topMargin: 8
                 bottomMargin: 8
                 interactive: false

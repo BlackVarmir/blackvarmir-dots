@@ -122,14 +122,6 @@ SetCard {
     }
 
     SetRow {
-        label: Tr.t("wx.inBar")
-        Toggle {
-            checked: Settings.data.weatherInBar
-            onToggled: v => Settings.set("weatherInBar", v)
-        }
-    }
-
-    SetRow {
         visible: Settings.data.weatherMode === "auto"
         stacked: true
         label: Tr.t("wx.googleKey")
