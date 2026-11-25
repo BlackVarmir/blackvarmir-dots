@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Робить меню знімків grub-btrfs таким, як у дизайні: без таблиці «| Date | Snapshot | … |»,
+# назва — опис знімка («#42 · сьогодні 14:02 · перед оновленням (23)»), а «сьогодні» / «вчора»
+# GRUB обчислює сам під час завантаження (модуль datehook). Ядра підписані по-людськи.
+# Запускається службою blackvarmir-grub-titles.path щоразу, як grub-btrfs перезаписує файл.
+set -euo pipefail
+
+cfg=/boot/grub/grub-btrfs.cfg
+[[ -f "$cfg" ]] || exit 0
+head -1 "$cfg" | grep -q '^# blackvarmir-titles' && exit 0
+
+lang=$(sed -n 's/^LANG=//p' /etc/locale.conf 2>/dev/null)
+if [[ "$lang" == uk* ]]; then today="сьогодні"; yesterday="вчора"; lts="резервне ядро"; else today="today"; yesterday="yesterday"; lts="fallback kernel"; fi
+
+tmp=$(mktemp)
+{
+    echo "# blackvarmir-titles"
+    echo "insmod datehook"
+    awk -v today="$today" -v yesterday="$yesterday" -v lts="$lts" '
+        # Заголовок таблиці і рядок-підпис усередині кожного знімка — прибрати
+        /^menuentry .\|.*\| *\x27 *\{ *echo *\}/ { next }
+        /^ *submenu \x27\| .* \|\x27 *\{ *echo *\}/ { next }
+        # submenu \x27|#42 · 2026-11-25 14:02 · перед оновленням (23)|\x27 {
+        /^ *submenu \x27\|.*\|\x27 *\{/ {
+            line = $0
+            title = line; sub(/^ *submenu \x27\|/, "", title); sub(/\|\x27 *\{.*$/, "", title)
+            gsub(/ +$/, "", title); gsub(/["$\\]/, "", title)
+            if (match(title, /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]/)) {
+                stamp = substr(title, RSTART, RLENGTH)
+                y = substr(stamp, 1, 4) + 0; m = substr(stamp, 6, 2) + 0; d = substr(stamp, 9, 2) + 0; hm = substr(stamp, 12, 5)
+                cmd = "date -d \"" substr(stamp, 1, 10) " +1 day\" +\"%Y %m %d\""; cmd | getline nxt; close(cmd)
+                split(nxt, n, " ")
+                pre = substr(title, 1, RSTART - 1); post = substr(title, RSTART + RLENGTH)
+                printf "if [ \"$YEAR\" -eq %d -a \"$MONTH\" -eq %d -a \"$DAY\" -eq %d ]; then bv_when=\"%s %s\"\n", y, m, d, today, hm
+                printf "elif [ \"$YEAR\" -eq %d -a \"$MONTH\" -eq %d -a \"$DAY\" -eq %d ]; then bv_when=\"%s %s\"\n", n[1] + 0, n[2] + 0, n[3] + 0, yesterday, hm
+                printf "else bv_when=\"%02d.%02d %s\"; fi\n", d, m, hm
+                title = pre "${bv_when}" post
+            }
+            printf "submenu \"%s\" {\n", title
+            next
+        }
+        # Ядра: «  vmlinuz-linux & initramfs-linux.img» → «BlackVarmir Arch» / «… · резервне ядро»
+        /^ *menuentry \x27 *vmlinuz-/ {
+            k = $0; sub(/^ *menuentry \x27 */, "", k); sub(/ &.*$/, "", k)
+            name = (k ~ /lts/) ? "BlackVarmir Arch · " lts " (linux-lts)" : (k ~ /fallback/ ? "" : "BlackVarmir Arch")
+            if ($0 ~ /fallback/) name = name " · fallback initramfs"
+            sub(/menuentry \x27[^\x27]*\x27/, "menuentry \x27" name "\x27")
+        }
+        { print }
+    ' "$cfg"
+} > "$tmp"
+install -m600 "$tmp" "$cfg"
+rm -f "$tmp"

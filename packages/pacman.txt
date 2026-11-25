@@ -75,3 +75,12 @@ papirus-icon-theme
 # --- Вигляд GTK- і Qt-застосунків ---
 adw-gtk-theme
 qt6ct
+
+# --- Знімки системи і резервне ядро ---
+snapper
+snap-pac
+grub-btrfs
+inotify-tools
+linux-lts
+linux-lts-headers
+libnotify

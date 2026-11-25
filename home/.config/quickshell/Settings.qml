@@ -212,6 +212,9 @@ Singleton {
             property string geoKey: ""
             // Звук під час запису екрана: none · system · mic
             property string recordAudio: "none"
+            // Оновлення: коли прочитано новини Arch і коли було останнє сповіщення
+            property real newsRead: 0
+            property string updatesNotified: ""
             property string kbToggle: "alt_shift"
             property int repeatDelay: 300
             property int repeatRate: 40

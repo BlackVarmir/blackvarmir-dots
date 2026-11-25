@@ -1,0 +1,11 @@
+[Unit]
+Description=BlackVarmir: завантаження дійшло до екрана входу
+After=display-manager.service blackvarmir-boot-start.service
+ConditionPathExists=/boot/grub/grubenv
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/blackvarmir-bootcheck ok
+
+[Install]
+WantedBy=graphical.target

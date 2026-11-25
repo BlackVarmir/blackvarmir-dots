@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Після відновлення зі знімка видаляє старий корінь (його стан уже збережено знімком
+# «Перед відновленням»). Запускається службою blackvarmir-restore-cleanup під час завантаження.
+set -euo pipefail
+
+[[ "$(findmnt -no FSTYPE /.snapshots 2>/dev/null)" == "btrfs" ]] || exit 0
+dev="$(findmnt -no SOURCE /.snapshots | sed 's/\[.*//')"
+current="$(findmnt -no FSROOT / | sed 's|^/||')"
+top="$(mktemp -d)"
+mount -o subvolid=5 "$dev" "$top"
+trap 'umount "$top"; rmdir "$top"' EXIT
+
+list="$top/.blackvarmir-restore-cleanup"
+[[ -f "$list" ]] || exit 0
+while IFS= read -r vol; do
+    [[ "$vol" =~ ^[A-Za-z0-9@._-]+-old-[0-9_-]+$ ]] || continue
+    [[ "$vol" != "$current" && -d "$top/$vol" ]] || continue
+    btrfs subvolume delete -R "$top/$vol" >/dev/null && echo "видалено старий корінь $vol"
+done < "$list"
+rm -f "$list"

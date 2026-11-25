@@ -22,6 +22,7 @@ Singleton {
     property bool clipboardOpen: false
     property bool calendarOpen: false
     property bool captureOpen: false
+    property bool updatesOpen: false
     // Вікно налаштувань — звичайне вікно, тож оверлеї при його відкритті просто ховаються
     property bool settingsOpen: false
     property string settingsSection: "lang"
@@ -39,6 +40,7 @@ Singleton {
         clipboardOpen = false;
         calendarOpen = false;
         captureOpen = false;
+        updatesOpen = false;
     }
 
     function toggleSpotlight() { const v = !spotlightOpen; closeAll(); spotlightOpen = v; }
@@ -53,6 +55,7 @@ Singleton {
     }
 
     function toggleClipboard() { const v = !clipboardOpen; closeAll(); clipboardOpen = v; }
+    function toggleUpdates()   { const v = !updatesOpen;   closeAll(); updatesOpen = v; }
     function toggleCalendar()  { const v = !calendarOpen;  closeAll(); calendarOpen = v; }
 
     IpcHandler {

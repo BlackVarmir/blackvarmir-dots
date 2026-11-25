@@ -7,7 +7,7 @@ import Quickshell.Services.UPower
 
 // Верхня панель: три скляні «острівці».
 // Ліво: логотип (відкриває Spotlight) · робочі столи · активне вікно.
-// Центр: годинник і дата. Право: розкладка · гучність · батарея.
+// Центр: годинник і дата. Право: оновлення · розкладка · гучність · батарея.
 // Усе оновлюється подіями (Hyprland IPC, PipeWire, UPower), без опитування.
 PanelWindow {
     id: bar
@@ -249,6 +249,42 @@ PanelWindow {
         clickable: true
         highlighted: Panels.controlOpen
         onClicked: Panels.toggleControl()
+
+        // Оновлення: лише коли вони є; клік — список (не центр керування)
+        Rectangle {
+            visible: Updates.count > 0
+            anchors.verticalCenter: parent.verticalCenter
+            width: updRow.implicitWidth + 14
+            height: 22
+            radius: 7
+            color: Panels.updatesOpen || updArea.containsMouse ? Qt.rgba(16 / 255, 185 / 255, 129 / 255, 0.26) : Qt.rgba(16 / 255, 185 / 255, 129 / 255, 0.16)
+            Row {
+                id: updRow
+                anchors.centerIn: parent
+                spacing: 5
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: Updates.news.length > 0 ? "\uf071" : "\uf019"
+                    color: Updates.news.length > 0 ? Theme.warning : Theme.emeraldLight
+                    font.family: Theme.mono
+                    font.pixelSize: 11
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: Updates.count
+                    color: Theme.emeraldLight
+                    font.family: Theme.mono
+                    font.pixelSize: 12
+                }
+            }
+            MouseArea {
+                id: updArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: Panels.toggleUpdates()
+            }
+        }
 
         // Розкладка
         Rectangle {

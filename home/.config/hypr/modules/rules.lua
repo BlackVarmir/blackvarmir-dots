@@ -14,7 +14,7 @@ hl.workspace_rule({ workspace = "1", persistent = true })
 ------------------------------------------------------------
 hl.layer_rule({
     name         = "varmir-glass",
-    match        = { namespace = "^varmir-(bar|spotlight|notifications|control|overview|osd|alttab|clipboard|calendar|capture-toast)$" },
+    match        = { namespace = "^varmir-(bar|spotlight|notifications|control|overview|osd|alttab|clipboard|calendar|capture-toast|updates|snapshot-banner)$" },
     blur         = true,
     ignore_alpha = 0.2, -- не розмивати прозорі ділянки між «острівцями»
 })
