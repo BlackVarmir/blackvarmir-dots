@@ -18,13 +18,37 @@ Scope {
     property bool capsLock: false
     signal failed()
 
+    // Перед блокуванням знімаємо кожен монітор (grim) — екран блокування показує
+    // цей знімок сильно розмитим. Файли в $XDG_RUNTIME_DIR (tmpfs, доступ лише власнику),
+    // після розблокування видаляються. Якщо знімок не встиг за 1,5 с — блокуємо без нього.
+    readonly property string snapDir: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/blackvarmir-lock"
+    property int snapRev: 0
+    function snapshotOf(name) { return snapDir + "/" + name + ".png"; }
+
     function lock() {
-        if (locked) return;
+        if (locked || snapper.running) return;
         Panels.closeAll();
         password = "";
         error = "";
+        snapper.command = ["bash", "-c",
+            'umask 077; mkdir -p "$1"; d="$1"; shift; for o in "$@"; do grim -l 0 -o "$o" "$d/$o.png" & done; wait',
+            "lock", snapDir].concat(Quickshell.screens.map(s => s.name));
+        snapper.running = true;
+        snapTimeout.restart();
+    }
+    function engage() {
+        snapTimeout.stop();
+        if (locked) return;
+        snapRev += 1;
         locked = true;
     }
+    onLockedChanged: if (!locked) Quickshell.execDetached(["rm", "-rf", snapDir])
+
+    Process {
+        id: snapper
+        onExited: root.engage()
+    }
+    Timer { id: snapTimeout; interval: 1500; onTriggered: root.engage() }
 
     function submit() {
         if (checking || password.length === 0) return;
@@ -89,10 +113,12 @@ Scope {
         locked: root.locked
 
         WlSessionLockSurface {
+            id: lockSurface
             color: Theme.canvas
             LockSurface {
                 anchors.fill: parent
                 lock: root
+                snapshot: lockSurface.screen ? "file://" + root.snapshotOf(lockSurface.screen.name) + "?rev=" + root.snapRev : ""
             }
         }
     }
