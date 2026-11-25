@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Живий сеанс BlackVarmir: розгортає конфіги з образу в домашню теку й запускає Hyprland.
+# Режим береться з параметра ядра bv.mode=install|try (див. меню завантаження).
+set -euo pipefail
+
+SRC=/opt/blackvarmir-dots
+MODE=try
+read -ra args < /proc/cmdline
+for p in "${args[@]}"; do
+    case "$p" in bv.mode=*) MODE="${p#bv.mode=}" ;; esac
+done
+
+# Конфіги оболонки і Hyprland (копії, щоб у живому сеансі їх можна було змінювати)
+mkdir -p "$HOME/.config" "$HOME/.local/share/blackvarmir/wallpapers" "$HOME/.config/blackvarmir"
+rsync -a "$SRC/home/.config/" "$HOME/.config/"
+cp -n "$SRC"/assets/wallpapers/* "$HOME/.local/share/blackvarmir/wallpapers/" 2>/dev/null || true
+
+# У живому сеансі без привітання, блокування і сну: екран входу тут не потрібен
+cat > "$HOME/.config/blackvarmir/settings.json" <<'JSON'
+{ "welcomed": true, "lockAfter": 0, "sleepAfter": 0, "dimAfter": 0 }
+JSON
+
+# У режимі встановлення разом із сеансом стартує установник
+rm -f "$HOME/.config/blackvarmir/hyprland-user.lua"
+if [[ "$MODE" == install ]]; then
+    cat > "$HOME/.config/blackvarmir/hyprland-user.lua" <<'LUA'
+hl.on("hyprland.start", function()
+    hl.exec_cmd("blackvarmir-installer")
+end)
+LUA
+fi
+
+export XDG_SESSION_TYPE=wayland XDG_CURRENT_DESKTOP=Hyprland
+exec Hyprland

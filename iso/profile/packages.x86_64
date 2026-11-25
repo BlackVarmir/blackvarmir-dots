@@ -1,0 +1,64 @@
+# Основа і завантаження
+base
+linux
+linux-firmware
+intel-ucode
+amd-ucode
+mkinitcpio
+mkinitcpio-archiso
+grub
+efibootmgr
+memtest86+-efi
+os-prober
+
+# Диски і файлові системи (двосистемна установка, власна розмітка, Btrfs)
+btrfs-progs
+dosfstools
+e2fsprogs
+exfatprogs
+ntfs-3g
+parted
+gptfdisk
+cryptsetup
+util-linux
+arch-install-scripts
+rsync
+git
+sudo
+nano
+vim
+
+# Мережа
+networkmanager
+iw
+wireless-regdb
+
+# Графіка і сеанс
+mesa
+vulkan-intel
+intel-media-driver
+hyprland
+xdg-desktop-portal-hyprland
+hyprpolkitagent
+qt6-wayland
+quickshell
+awww
+kitty
+wl-clipboard
+brightnessctl
+pciutils
+usbutils
+
+# Звук
+pipewire
+pipewire-pulse
+pipewire-alsa
+wireplumber
+
+# Вигляд (Geist і курсор Bibata збираються в локальний репозиторій, див. aur.txt)
+otf-geist-mono-nerd
+noto-fonts
+noto-fonts-emoji
+papirus-icon-theme
+ttf-geist
+bibata-cursor-theme-bin
