@@ -212,6 +212,8 @@ Singleton {
         "ws.4": "Чат",
         "ws.5": "Музика",
         "ws.6": "Інше",
+        "ws.n": "Стіл {0}",
+        "ws.new": "Новий стіл",
 
         // Spotlight
         "sp.calcResult": "Результат · Enter копіює",
@@ -573,6 +575,8 @@ Singleton {
         "ws.4": "Chat",
         "ws.5": "Music",
         "ws.6": "Other",
+        "ws.n": "Desktop {0}",
+        "ws.new": "New desktop",
 
         "sp.calcResult": "Result · Enter copies",
         "sp.runCmd": "Run in a new terminal",

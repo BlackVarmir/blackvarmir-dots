@@ -96,11 +96,12 @@ bind(mod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
 bind(mod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
 ------------------------------------------------------------
--- Робочі столи 1–6
+-- Робочі столи 1–10 (Super + 0 — десятий). Порожні створюються й зникають самі.
 ------------------------------------------------------------
-for i = 1, 6 do
-    bind(mod .. " + " .. i,             hl.dsp.focus({ workspace = i }))
-    bind(mod .. " + SHIFT + " .. i,     hl.dsp.window.move({ workspace = i }))
+for i = 1, 10 do
+    local key = tostring(i % 10)
+    bind(mod .. " + " .. key,           hl.dsp.focus({ workspace = i }))
+    bind(mod .. " + SHIFT + " .. key,   hl.dsp.window.move({ workspace = i }))
 end
 
 bind(mod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))

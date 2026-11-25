@@ -17,7 +17,16 @@ Item {
     // Логічний розмір монітора (з урахуванням масштабу) для пропорцій мініатюр
     readonly property real monW: (monitor?.width ?? 1920) / (monitor?.scale ?? 1)
     readonly property real monH: (monitor?.height ?? 1080) / (monitor?.scale ?? 1)
-    readonly property real cardW: Math.min(540, (width - 236 - 64) / 3)
+    // Скільки столів показуємо і в скількох колонках; картки стискаються, щоб усе вмістилося
+    readonly property var wsIds: Workspaces.ids
+    readonly property int cols: wsIds.length <= 6 ? 3 : 4
+    readonly property int rows: Math.ceil(wsIds.length / cols)
+    readonly property real cardW: {
+        const byWidth = (width - 236 - 64) / cols;
+        // висота під сіткою: пошук зверху, підказки й док знизу, підпис картки ≈ 30 px
+        const free = height - 150 - 52 - 28 - 20 - 130 - rows * 30 - (rows - 1) * 44;
+        return Math.max(160, Math.min(540, byWidth, free / rows * monW / monH));
+    }
     readonly property real cardH: cardW * monH / monW
 
     readonly property var allWindows: Hyprland.toplevels.values.filter(t => (t.workspace?.id ?? 0) > 0)
@@ -58,11 +67,15 @@ Item {
         refreshSoon.restart();
     }
     function goToWorkspace(wsId) {
-        const list = Hyprland.workspaces.values;
-        for (let i = 0; i < list.length; i++)
-            if (list[i].id === wsId) { list[i].activate(); Panels.overviewOpen = false; return; }
-        Hyprland.dispatch(`hl.dsp.focus({ workspace = ${wsId} })`);
+        Workspaces.go(wsId);
         Panels.overviewOpen = false;
+    }
+    // Стрілки: крок по списку наявних столів (вбік на 1, вгору/вниз на ряд)
+    function stepWorkspace(delta) {
+        const i = wsIds.indexOf(selectedWs);
+        const j = i + delta;
+        if (j >= 0 && j < wsIds.length) selectedWs = wsIds[j];
+        selectedAddr = "";
     }
     function activateSelection() {
         if (selectedAddr !== "") {
@@ -150,13 +163,13 @@ Item {
                 } else if (k === Qt.Key_Return || k === Qt.Key_Enter) {
                     root.activateSelection();
                 } else if (k === Qt.Key_Left) {
-                    root.selectedWs = Math.max(1, root.selectedWs - 1); root.selectedAddr = "";
+                    root.stepWorkspace(-1);
                 } else if (k === Qt.Key_Right) {
-                    root.selectedWs = Math.min(6, root.selectedWs + 1); root.selectedAddr = "";
+                    root.stepWorkspace(1);
                 } else if (k === Qt.Key_Up) {
-                    root.selectedWs = root.selectedWs > 3 ? root.selectedWs - 3 : root.selectedWs; root.selectedAddr = "";
+                    root.stepWorkspace(-root.cols);
                 } else if (k === Qt.Key_Down) {
-                    root.selectedWs = root.selectedWs <= 3 ? root.selectedWs + 3 : root.selectedWs; root.selectedAddr = "";
+                    root.stepWorkspace(root.cols);
                 } else if (k === Qt.Key_Tab) {
                     root.cycleWindow(1);
                 } else if (k === Qt.Key_Backtab) {
@@ -165,8 +178,8 @@ Item {
                     const t = root.allWindows.find(w => w.address === root.selectedAddr);
                     if (t) root.closeWindow(t);
                     root.selectedAddr = "";
-                } else if (search.text.length === 0 && k >= Qt.Key_1 && k <= Qt.Key_6) {
-                    root.goToWorkspace(k - Qt.Key_0);
+                } else if (search.text.length === 0 && k >= Qt.Key_0 && k <= Qt.Key_9) {
+                    root.goToWorkspace(k === Qt.Key_0 ? 10 : k - Qt.Key_0);
                 } else {
                     return;
                 }
@@ -180,16 +193,16 @@ Item {
         id: grid
         anchors.horizontalCenter: parent.horizontalCenter
         y: searchBox.y + searchBox.height + 52
-        columns: 3
+        columns: root.cols
         columnSpacing: 32
         rowSpacing: 44
 
         Repeater {
-            model: 6
+            model: root.wsIds
 
             WorkspaceCard {
-                required property int index
-                wsId: index + 1
+                required property int modelData
+                wsId: modelData
                 overview: root
                 width: root.cardW
             }
@@ -203,7 +216,7 @@ Item {
         spacing: 22
 
         Repeater {
-            model: [["← → ↑ ↓", Tr.t("overview.kDesk")], ["Tab", Tr.t("overview.kWindow")], ["⏎", Tr.t("overview.kGo")], ["1…6", Tr.t("overview.kJump")], ["Del", Tr.t("overview.kClose")], ["Esc", Tr.t("overview.kExit")]]
+            model: [["← → ↑ ↓", Tr.t("overview.kDesk")], ["Tab", Tr.t("overview.kWindow")], ["⏎", Tr.t("overview.kGo")], ["1…0", Tr.t("overview.kJump")], ["Del", Tr.t("overview.kClose")], ["Esc", Tr.t("overview.kExit")]]
             Row {
                 required property var modelData
                 spacing: 7

@@ -84,33 +84,32 @@ PanelWindow {
             }
         }
 
-        // Робочі столи 1–6: активний — витягнута градієнтна пігулка,
+        // Робочі столи (динамічні): активний — витягнута градієнтна пігулка,
         // зайнятий — яскрава крапка, порожній — тьмяна.
         Row {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 7
 
             Repeater {
-                model: 6
+                model: Workspaces.ids
 
                 Rectangle {
                     id: dot
-                    required property int index
-                    readonly property int wsId: index + 1
-                    readonly property var ws: {
-                        const list = Hyprland.workspaces.values;
-                        for (let i = 0; i < list.length; i++)
-                            if (list[i].id === wsId) return list[i];
-                        return null;
-                    }
+                    required property int modelData
+                    readonly property int wsId: modelData
+                    readonly property var ws: Workspaces.find(wsId)
                     readonly property bool active: bar.monitor?.activeWorkspace?.id === wsId
                     readonly property bool occupied: (ws?.toplevels?.values?.length ?? 0) > 0
+                    // Порожній стіл наприкінці: пунктирна крапка «новий»
+                    readonly property bool fresh: Workspaces.trailing === wsId && !active
 
                     anchors.verticalCenter: parent.verticalCenter
                     width: active ? 26 : (occupied ? 8 : 6)
                     height: active || occupied ? 8 : 6
                     radius: height / 2
-                    color: active ? Theme.emerald : (occupied ? Qt.rgba(1, 1, 1, 0.55) : Qt.rgba(1, 1, 1, 0.2))
+                    color: fresh ? "transparent" : (active ? Theme.emerald : (occupied ? Qt.rgba(1, 1, 1, 0.55) : Qt.rgba(1, 1, 1, 0.2)))
+                    border.width: fresh ? 1 : 0
+                    border.color: Qt.rgba(1, 1, 1, 0.35)
                     gradient: active ? activeGradient : null
 
                     Gradient {
@@ -129,10 +128,7 @@ PanelWindow {
                         anchors.margins: -4
                         cursorShape: Qt.PointingHandCursor
                         // activate() сам підбирає синтаксис (Lua чи старий hyprlang)
-                        onClicked: {
-                            if (dot.ws) dot.ws.activate();
-                            else Hyprland.dispatch(`hl.dsp.focus({ workspace = ${dot.wsId} })`);
-                        }
+                        onClicked: Workspaces.go(dot.wsId)
                     }
                 }
             }
