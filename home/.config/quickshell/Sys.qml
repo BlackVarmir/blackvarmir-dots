@@ -15,11 +15,15 @@ Singleton {
     property string vpnName: ""
     property bool vpnActive: false
     property bool nightLight: false
+    property string realName: ""
+    // Збільшується після зміни аватара, щоб картинка перечиталась з диска
+    property int avatarRev: 0
+    readonly property string avatarPath: (Quickshell.env("HOME") || "") + "/.face.icon"
 
     readonly property string uptimeText: {
         const h = Math.floor(uptimeMinutes / 60);
         const m = uptimeMinutes % 60;
-        return h > 0 ? `${h} год ${m} хв` : `${m} хв`;
+        return h > 0 ? Tr.t("time.hm", h, m) : Tr.t("time.m", m);
     }
 
     function refresh() {
@@ -42,9 +46,11 @@ Singleton {
     Process {
         id: probe
         command: ["sh", "-c",
-            "brightnessctl -m info 2>/dev/null | cut -d, -f4; " +
-            "cut -d' ' -f1 /proc/uptime; " +
-            "nmcli -t -f NAME,TYPE connection show 2>/dev/null | grep -E ':(wireguard|vpn)$' | head -n1 | cut -d: -f1; " +
+            // Кожна команда друкує рівно один рядок (echo "$(…)"), навіть якщо нічого не знайшла
+            "echo \"$(brightnessctl -m info 2>/dev/null | cut -d, -f4)\"; " +
+            "echo \"$(cut -d' ' -f1 /proc/uptime)\"; " +
+            "echo \"$(nmcli -t -f NAME,TYPE connection show 2>/dev/null | grep -E ':(wireguard|vpn)$' | head -n1 | cut -d: -f1)\"; " +
+            "echo \"$(getent passwd \"$USER\" | cut -d: -f5 | cut -d, -f1)\"; " +
             "echo '--'; nmcli -t -f NAME connection show --active 2>/dev/null"]
         stdout: StdioCollector {
             onStreamFinished: {
@@ -53,6 +59,7 @@ Singleton {
                 if (!isNaN(pct)) sys.brightness = pct / 100;
                 sys.uptimeMinutes = Math.floor(parseFloat(lines[1] || "0") / 60);
                 sys.vpnName = (lines[2] || "").trim();
+                sys.realName = (lines[3] || "").trim();
                 const sep = lines.indexOf("--");
                 const active = sep >= 0 ? lines.slice(sep + 1) : [];
                 sys.vpnActive = sys.vpnName !== "" && active.indexOf(sys.vpnName) !== -1;
@@ -67,9 +74,9 @@ Singleton {
         onTriggered: sys.refresh()
     }
 
-    // Нічне світло: процес hyprsunset живе, поки режим увімкнено
-    Process {
-        running: sys.nightLight
-        command: ["hyprsunset", "-t", "4000"]
-    }
+    // Нічне світло: hyprsunset працює постійно (розклад — у налаштуваннях),
+    // плитка в центрі керування вмикає/вимикає його вручну до наступної зміни за розкладом.
+    onNightLightChanged: Quickshell.execDetached(nightLight
+        ? ["hyprctl", "hyprsunset", "temperature", String(Settings.data.nightTemp)]
+        : ["hyprctl", "hyprsunset", "identity"])
 }

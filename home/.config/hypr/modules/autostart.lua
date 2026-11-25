@@ -1,19 +1,26 @@
 -- Автозапуск разом із сесією.
 -- https://wiki.hypr.land/configuring/core/autostart/
 -- Усе тут подієве: жоден процес не опитує систему щосекунди.
+-- Файли в ~/.config/blackvarmir/ створює застосунок «Налаштування»; якщо їх ще немає,
+-- використовуються стандартні з цього репозиторію.
+
+local cfg = "$HOME/.config/blackvarmir"
 
 hl.on("hyprland.start", function()
-    -- Оболонка: панель, Spotlight, сповіщення
+    -- Оболонка: панель, Spotlight, огляд, центр керування, налаштування, сповіщення
     hl.exec_cmd("qs")
 
-    -- Шпалери з плавним переходом
+    -- Шпалери з плавним переходом (вибрані в налаштуваннях або Varmir Aura)
     hl.exec_cmd("awww-daemon")
-    hl.exec_cmd("sleep 1 && awww img ~/.local/share/blackvarmir/wallpapers/varmir-aura.png --transition-type fade")
+    hl.exec_cmd("sleep 1 && awww img \"$(cat " .. cfg .. "/wallpaper 2>/dev/null || echo ~/.local/share/blackvarmir/wallpapers/varmir-aura.png)\" --transition-type fade")
 
     -- Блокування і сон за бездіяльності
-    hl.exec_cmd("hypridle")
+    hl.exec_cmd("[ -f " .. cfg .. "/hypridle.conf ] && exec hypridle -c " .. cfg .. "/hypridle.conf || exec hypridle")
 
-    -- Агент автентифікації (вікно пароля для pkexec, GParted тощо)
+    -- Нічне світло за розкладом (керується з налаштувань і центру керування)
+    hl.exec_cmd("[ -f " .. cfg .. "/hyprsunset.conf ] && exec hyprsunset -c " .. cfg .. "/hyprsunset.conf || exec hyprsunset")
+
+    -- Агент автентифікації (вікно пароля для pkexec, налаштувань системи тощо)
     hl.exec_cmd("systemctl --user start hyprpolkitagent")
 
     -- Історія буфера обміну (текст і картинки)

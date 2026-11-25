@@ -44,8 +44,9 @@ cd ~/blackvarmir-dots
 | `Super + V` | Історія буфера обміну |
 | `Super + E` | Файли |
 | `Super + L` | Заблокувати |
+| `Super + ,` | Налаштування |
 | `Print` / `Shift + Print` | Знімок області / всього екрана → буфер і `~/Pictures/Screenshots` |
-| `Alt + Shift` | Розкладка EN ↔ UK |
+| `Alt + Shift` | Наступна розкладка (комбінацію можна змінити в налаштуваннях) |
 | Три пальці вбік | Перемкнути стіл |
 
 ## Структура
@@ -60,17 +61,38 @@ home/.config/
   hypr/hyprlock.conf        екран блокування
   hypr/hypridle.conf        бездіяльність і сон
   quickshell/               оболонка: Theme (кольори, закріплені в доці застосунки) · Bar · Spotlight ·
-                            Overview · ControlCenter (+ підменю Cc*) · Notifications · NotifStore · Sys
+                            Overview · ControlCenter (+ підменю Cc*) · Notifications · NotifStore · Sys ·
+                            SettingsWindow (+ сторінки Set*) · Settings · Tr + Strings (переклад)
   kitty/ fish/ starship.toml
 system/etc/                 zram і sysctl
+system/bin/                 blackvarmir-settings-helper: дії налаштувань, що потребують root (через pkexec)
+scripts/check-strings.py    перевірка, що всі рядки оболонки перекладені
 system/sddm/blackvarmir/    тема екрана входу (SDDM, Qt 6)
 assets/wallpapers/          шпалери Varmir Aura
 docs/PERFORMANCE.md         чеклист продуктивності
 ```
 
-Кольори, шрифти, радіуси і тривалості анімацій оболонки задаються в одному файлі: `quickshell/Theme.qml`. Там же список застосунків, закріплених у доці за замовчуванням (далі його змінюєш з меню дока).
+Кольори, шрифти, радіуси і тривалості анімацій оболонки задаються в одному файлі: `quickshell/Theme.qml`. Там же список застосунків, закріплених у доці за замовчуванням (далі його змінюєш з меню дока). Для Hyprland вони в `hypr/modules/look.lua` і `animations.lua`.
 
-Екран входу перевіряється без виходу з системи: `sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/blackvarmir`. Для Hyprland вони в `hypr/modules/look.lua` і `animations.lua`.
+Екран входу перевіряється без виходу з системи: `sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/blackvarmir`.
+
+## Налаштування
+
+`Super + ,`, шестірня в центрі керування або «Налаштування» в Spotlight. Розділи: мова і регіон, клавіатура, екран, вигляд, звук, живлення, користувач, про систему.
+
+Те, що ти змінюєш, лежить окремо від репозиторію, тож `git pull` нічого не перезапише:
+
+```
+~/.config/blackvarmir/settings.json        усі значення
+~/.config/blackvarmir/hyprland-user.lua    розкладки, монітори, відступи, розмиття, анімації (hyprland.lua підхоплює його останнім)
+~/.config/blackvarmir/hypridle.conf        тайм-аути приглушення, блокування і сну
+~/.config/blackvarmir/hyprsunset.conf      розклад нічного світла
+~/.config/blackvarmir/wallpaper            шлях до шпалер
+```
+
+Зміни застосовуються одразу через `hyprctl eval`. Нові параметри екрана треба підтвердити за 15 секунд, інакше вони повертаються. Мова системи, часовий пояс, кришка ноутбука, ім'я і фото для екрана входу міняються через `pkexec` і помічник `blackvarmir-settings-helper`, який приймає лише перелічені дії й перевіряє значення.
+
+Оболонка перекладена українською та англійською; мову обираєш у «Мова і регіон» (за замовчуванням як у системі). Щоб додати мову, скопіюй словник `en` у `quickshell/Strings.qml`, переклади і додай код у `Tr.languages`. `python3 scripts/check-strings.py` покаже, яких рядків бракує.
 
 ## Далі
 
@@ -79,3 +101,4 @@ docs/PERFORMANCE.md         чеклист продуктивності
 - [x] Меню дока правою кнопкою: вікна застосунку, його дії, закріплення і порядок (зберігається в `~/.local/state/blackvarmir/dock.json`)
 - [x] Тема SDDM у тому ж стилі
 - [x] Пошук файлів у Spotlight через `plocate` (індекс оновлюється щогодини)
+- [x] Застосунок «Налаштування» і переклад оболонки (українська, англійська)

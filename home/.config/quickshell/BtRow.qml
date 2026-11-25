@@ -50,10 +50,10 @@ Rectangle {
                 font.weight: row.device.connected ? Font.DemiBold : Font.Normal
             }
             Text {
-                text: row.busy ? "З'єднання…"
+                text: row.busy ? Tr.t("bt.connecting")
                     : row.device.connected
-                        ? (row.device.batteryAvailable ? "Підключено · заряд " + Math.round(row.device.battery * 100) + "%" : "Підключено")
-                    : row.device.paired ? "Не підключено" : "Готовий до з'єднання"
+                        ? (row.device.batteryAvailable ? Tr.t("bt.connectedBattery", Math.round(row.device.battery * 100)) : Tr.t("bt.connected"))
+                    : row.device.paired ? Tr.t("bt.notConnected") : Tr.t("bt.ready")
                 color: Theme.textMuted
                 font.family: Theme.font
                 font.pixelSize: 12
@@ -63,7 +63,7 @@ Rectangle {
         VButton {
             visible: !row.busy
             variant: row.device.connected ? "ghost" : "secondary"
-            text: row.device.connected ? "Відключити" : row.device.paired ? "Підключити" : "З'єднати"
+            text: row.device.connected ? Tr.t("bt.disconnect") : row.device.paired ? Tr.t("bt.connect") : Tr.t("bt.pair")
             onClicked: {
                 if (row.device.connected) {
                     row.device.disconnect();

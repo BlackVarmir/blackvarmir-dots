@@ -63,13 +63,13 @@ PanelWindow {
             const expr = q.slice(1).trim();
             const value = calc(expr);
             return value === null ? [] : [{
-                kind: "calc", title: value, subtitle: "Результат · Enter копіює", glyph: "="
+                kind: "calc", title: value, subtitle: Tr.t("sp.calcResult"), glyph: "="
             }];
         }
         if (q.startsWith(">")) {
             const cmd = q.slice(1).trim();
             return cmd.length === 0 ? [] : [{
-                kind: "cmd", title: cmd, subtitle: "Виконати в новому терміналі", glyph: "", payload: cmd
+                kind: "cmd", title: cmd, subtitle: Tr.t("sp.runCmd"), glyph: "", payload: cmd
             }];
         }
         if (q.startsWith("/")) {
@@ -78,11 +78,11 @@ PanelWindow {
         if (q.startsWith("?")) {
             const text = q.slice(1).trim();
             return text.length === 0 ? [] : [{
-                kind: "web", title: text, subtitle: "Шукати в інтернеті", glyph: "", payload: text
+                kind: "web", title: text, subtitle: Tr.t("sp.web"), glyph: "", payload: text
             }];
         }
-        const apps = searchApps(q);
-        // Без префікса: застосунки першими, під ними до 3 файлів
+        const apps = searchSettings(q).concat(searchApps(q));
+        // Без префікса: розділи налаштувань і застосунки першими, під ними до 3 файлів
         return apps.slice(0, maxResults - Math.min(3, fileResults.length)).concat(fileResults.slice(0, 3));
     }
 
@@ -168,6 +168,24 @@ PanelWindow {
         }
     }
 
+    // Розділи «Налаштувань»: шукаємо за назвою розділу обома мовами і за словом «налаштування»
+    readonly property var settingsSections: ["lang", "keyboard", "display", "appearance", "sound", "power", "user", "about"]
+    function searchSettings(q) {
+        const needle = q.toLowerCase();
+        const words = [Strings.uk["set.title"], Strings.en["set.title"]].map(w => w.toLowerCase());
+        const all = words.some(w => w.startsWith(needle));
+        const found = [];
+        for (const id of settingsSections) {
+            const names = [Strings.uk["set." + id], Strings.en["set." + id]].map(w => w.toLowerCase());
+            if (all || names.some(n => n.startsWith(needle) || n.indexOf(" " + needle) !== -1))
+                found.push({ kind: "setting", title: Tr.t("set." + id), subtitle: Tr.t("sp.settings"), glyph: "\uf013", payload: id });
+        }
+        // «нал…» без уточнення — один пункт, а не вісім
+        if (all && found.length > 1)
+            return [{ kind: "setting", title: Tr.t("set.title"), subtitle: Tr.t("sp.settings"), glyph: "\uf013", payload: "" }];
+        return found.slice(0, 3);
+    }
+
     function searchApps(q) {
         const needle = q.toLowerCase();
         const scored = [];
@@ -190,7 +208,7 @@ PanelWindow {
         return scored.slice(0, maxResults).map(s => ({
             kind: "app",
             title: s.entry.name,
-            subtitle: s.entry.genericName || s.entry.comment || "Застосунок",
+            subtitle: s.entry.genericName || s.entry.comment || Tr.t("sp.app"),
             icon: s.entry.icon,
             entry: s.entry
         }));
@@ -204,6 +222,7 @@ PanelWindow {
         else if (r.kind === "file") Quickshell.execDetached(reveal ? ["nautilus", "--select", r.payload] : ["xdg-open", r.payload]);
         else if (r.kind === "calc") Quickshell.execDetached(["wl-copy", r.title]);
         else if (r.kind === "cmd") Quickshell.execDetached(["kitty", "--hold", "sh", "-c", r.payload]);
+        else if (r.kind === "setting") { Panels.openSettings(r.payload); return; }
         else if (r.kind === "web") Quickshell.execDetached(["xdg-open", "https://duckduckgo.com/?q=" + encodeURIComponent(r.payload)]);
         Panels.spotlightOpen = false;
     }
@@ -300,7 +319,7 @@ PanelWindow {
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         visible: input.text.length === 0
-                        text: "Застосунки і файли, / лише файли, = обчислити"
+                        text: Tr.t("sp.placeholder")
                         color: Theme.textSubtle
                         font: input.font
                     }
@@ -442,8 +461,8 @@ PanelWindow {
                     anchors.leftMargin: 24
                     anchors.verticalCenter: parent.verticalCenter
                     text: spotlight.results[spotlight.current]?.kind === "file"
-                        ? "↑↓ вибір    ⏎ відкрити    ⇧⏎ показати в теці"
-                        : "↑↓ вибір    ⏎ відкрити    Esc закрити"
+                        ? Tr.t("sp.hintFile")
+                        : Tr.t("sp.hint")
                     color: Theme.textMuted
                     font.family: Theme.font
                     font.pixelSize: 12
@@ -452,7 +471,7 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.rightMargin: 24
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "/ файли   = обчислити   > команда   ? веб"
+                    text: Tr.t("sp.prefixes")
                     color: Theme.textSubtle
                     font.family: Theme.mono
                     font.pixelSize: 12

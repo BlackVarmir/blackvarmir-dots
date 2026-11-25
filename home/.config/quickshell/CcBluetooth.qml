@@ -54,13 +54,13 @@ ColumnLayout {
             width: parent.width
             spacing: 6
 
-            Eyebrow { visible: page.connectedList.length > 0; text: "ПІДКЛЮЧЕНІ" }
+            Eyebrow { visible: page.connectedList.length > 0; text: Tr.t("bt.sectionConnected") }
             Repeater {
                 model: page.connectedList
                 BtRow { required property var modelData; device: modelData; glyph: page.glyphFor(modelData.icon); Layout.fillWidth: true }
             }
 
-            Eyebrow { visible: page.pairedList.length > 0; text: "ЗАПАМ'ЯТОВАНІ" }
+            Eyebrow { visible: page.pairedList.length > 0; text: Tr.t("bt.sectionPaired") }
             Repeater {
                 model: page.pairedList
                 BtRow { required property var modelData; device: modelData; glyph: page.glyphFor(modelData.icon); Layout.fillWidth: true }
@@ -69,9 +69,9 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 visible: page.adapter?.enabled ?? false
-                Eyebrow { Layout.fillWidth: true; text: "ПОРУЧ" }
+                Eyebrow { Layout.fillWidth: true; text: Tr.t("bt.sectionNearby") }
                 Text {
-                    text: (page.adapter?.discovering ?? false) ? "пошук…" : ""
+                    text: (page.adapter?.discovering ?? false) ? Tr.t("bt.searching") : ""
                     color: Theme.textMuted
                     font.family: Theme.mono
                     font.pixelSize: 11
@@ -87,7 +87,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 Layout.topMargin: 20
                 horizontalAlignment: Text.AlignHCenter
-                text: page.adapter ? "Bluetooth вимкнено" : "Адаптер Bluetooth не знайдено"
+                text: page.adapter ? Tr.t("bt.off") : Tr.t("bt.noAdapter")
                 color: Theme.textMuted
                 font.family: Theme.font
                 font.pixelSize: 14

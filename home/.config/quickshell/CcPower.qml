@@ -43,7 +43,7 @@ ColumnLayout {
 
     PageHeader {
         Layout.fillWidth: true
-        title: "Живлення"
+        title: Tr.t("power.title")
         onBack: page.back()
         Text {
             visible: page.battery?.isLaptopBattery ?? false
@@ -52,7 +52,7 @@ ColumnLayout {
                 if (!b) return "";
                 let s = Math.round(b.percentage * 100) + "%";
                 const secs = b.timeToEmpty > 0 ? b.timeToEmpty : 0;
-                if (secs > 0) s += ` · ≈ ${Math.floor(secs / 3600)} год ${Math.floor(secs % 3600 / 60)} хв`;
+                if (secs > 0) s += " · ≈ " + Tr.t("time.hm", Math.floor(secs / 3600), Math.floor(secs % 3600 / 60));
                 return s;
             }
             color: Theme.textMuted
@@ -61,7 +61,7 @@ ColumnLayout {
         }
     }
 
-    Eyebrow { text: "ПРОФІЛЬ" }
+    Eyebrow { text: Tr.t("power.profile") }
 
     GridLayout {
         Layout.fillWidth: true
@@ -70,9 +70,9 @@ ColumnLayout {
 
         Repeater {
             model: [
-                { profile: PowerProfile.PowerSaver, label: "Енергозбереження", glyph: "" },
-                { profile: PowerProfile.Balanced, label: "Збалансований", glyph: "" },
-                { profile: PowerProfile.Performance, label: "Продуктивність", glyph: "" }
+                { profile: PowerProfile.PowerSaver, label: Tr.t("power.saver"), glyph: "" },
+                { profile: PowerProfile.Balanced, label: Tr.t("power.balanced"), glyph: "" },
+                { profile: PowerProfile.Performance, label: Tr.t("power.performance"), glyph: "" }
             ].filter(p => p.profile !== PowerProfile.Performance || PowerProfiles.hasPerformanceProfile)
 
             Rectangle {
@@ -118,15 +118,15 @@ ColumnLayout {
         }
     }
 
-    Eyebrow { text: "СЕАНС" }
+    Eyebrow { text: Tr.t("power.session") }
 
     Repeater {
         model: [
-            { id: "lock", label: "Заблокувати", glyph: "", hint: "Super + L" },
-            { id: "sleep", label: "Сон", glyph: "", hint: "" },
-            { id: "logout", label: "Вийти з сеансу", glyph: "", hint: "" },
-            { id: "reboot", label: "Перезавантажити", glyph: "", hint: "" },
-            { id: "poweroff", label: "Вимкнути", glyph: "", hint: "" }
+            { id: "lock", label: Tr.t("power.lock"), glyph: "", hint: "Super + L" },
+            { id: "sleep", label: Tr.t("power.sleep"), glyph: "", hint: "" },
+            { id: "logout", label: Tr.t("power.logout"), glyph: "", hint: "" },
+            { id: "reboot", label: Tr.t("power.reboot"), glyph: "", hint: "" },
+            { id: "poweroff", label: Tr.t("power.poweroff"), glyph: "", hint: "" }
         ]
 
         Rectangle {
@@ -181,7 +181,7 @@ ColumnLayout {
                         font.weight: action.isPending ? Font.DemiBold : Font.Normal
                     }
                     Text {
-                        text: action.isPending ? `через ${page.secondsLeft} с` : action.modelData.hint
+                        text: action.isPending ? Tr.t("power.inSeconds", page.secondsLeft) : action.modelData.hint
                         color: action.isPending ? Theme.error : Theme.textSubtle
                         font.family: Theme.mono
                         font.pixelSize: 12
@@ -207,9 +207,9 @@ ColumnLayout {
                     visible: action.isPending
                     Layout.alignment: Qt.AlignRight
                     spacing: 8
-                    VButton { text: "Скасувати"; variant: "ghost"; onClicked: { countdown.stop(); page.pending = ""; } }
+                    VButton { text: Tr.t("common.cancel"); variant: "ghost"; onClicked: { countdown.stop(); page.pending = ""; } }
                     VButton {
-                        text: action.modelData.id === "reboot" ? "Перезавантажити зараз" : "Вимкнути зараз"
+                        text: action.modelData.id === "reboot" ? Tr.t("power.rebootNow") : Tr.t("power.poweroffNow")
                         variant: "danger"
                         onClicked: { countdown.stop(); page.run(page.pending); }
                     }
@@ -223,7 +223,7 @@ ColumnLayout {
     Text {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
-        text: "Вимкнення і перезавантаження чекають 10 с: можна передумати."
+        text: Tr.t("power.hint")
         color: Theme.textSubtle
         font.family: Theme.font
         font.pixelSize: 12
