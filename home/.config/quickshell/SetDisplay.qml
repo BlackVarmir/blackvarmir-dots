@@ -83,26 +83,31 @@ SetPage {
         refresh.restart();
     }
 
-    // Розташування другого монітора відносно основного
-    function place(where) {
-        const m = selected;
+    // Монітор перетягнули на схемі: (gx, gy) — куди лягає його лівий верхній кут
+    // у логічних координатах. Притягуємо до найближчого краю основного монітора і
+    // вирівнюємо по верху / центру / низу, якщо до них близько.
+    function dropAt(m, gx, gy) {
         if (!m || !primary || m === primary) return;
         const p = primary.lastIpcObject ?? {}, o = m.lastIpcObject ?? {};
         const pw = Math.round(p.width / p.scale), ph = Math.round(p.height / p.scale);
         const ow = Math.round(o.width / o.scale), oh = Math.round(o.height / o.scale);
-        const pos = where === "left" ? `${p.x - ow}x${p.y}`
-            : where === "above" ? `${p.x}x${p.y - oh}`
-            : where === "below" ? `${p.x}x${p.y + ph}`
-            : `${p.x + pw}x${p.y}`;
-        change(m, { position: pos });
-    }
-    readonly property string placement: {
-        if (!selected || !primary || selected === primary) return "";
-        const p = primary.lastIpcObject ?? {}, o = selected.lastIpcObject ?? {};
-        if (o.x >= p.x + p.width / p.scale) return "right";
-        if (o.x + o.width / o.scale <= p.x) return "left";
-        if (o.y + o.height / o.scale <= p.y) return "above";
-        return "below";
+        const dx = (gx + ow / 2 - (p.x + pw / 2)) / pw, dy = (gy + oh / 2 - (p.y + ph / 2)) / ph;
+        let x, y;
+        const snap = (v, targets, span) => {
+            for (const t of targets) if (Math.abs(v - t) < span * 0.08) return t;
+            return v;
+        };
+        if (Math.abs(dx) >= Math.abs(dy)) {
+            x = dx > 0 ? p.x + pw : p.x - ow;
+            y = snap(Math.max(p.y - oh + 50, Math.min(p.y + ph - 50, gy)), [p.y, p.y + (ph - oh) / 2, p.y + ph - oh], ph);
+        } else {
+            y = dy > 0 ? p.y + ph : p.y - oh;
+            x = snap(Math.max(p.x - ow + 50, Math.min(p.x + pw - 50, gx)), [p.x, p.x + (pw - ow) / 2, p.x + pw - ow], pw);
+        }
+        x = Math.round(x);
+        y = Math.round(y);
+        if (x === o.x && y === o.y) return;
+        change(m, { position: `${x}x${y}` });
     }
 
     Timer {
@@ -149,8 +154,13 @@ SetPage {
                     id: box
                     required property var modelData
                     readonly property bool on: modelData.m.name === page.selected?.name
-                    x: diagram.offX + (modelData.x - diagram.minX) * diagram.k
-                    y: diagram.offY + (modelData.y - diagram.minY) * diagram.k
+                    readonly property bool movable: modelData.m !== page.primary
+                    // Зсув під час перетягування (у пікселях схеми)
+                    property real dragX: 0
+                    property real dragY: 0
+                    z: dragArea.pressed ? 2 : 1
+                    x: diagram.offX + (modelData.x - diagram.minX) * diagram.k + dragX
+                    y: diagram.offY + (modelData.y - diagram.minY) * diagram.k + dragY
                     width: modelData.w * diagram.k - 6
                     height: modelData.h * diagram.k - 6
                     radius: 10
@@ -178,13 +188,40 @@ SetPage {
                         }
                     }
                     MouseArea {
+                        id: dragArea
                         anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: page.selectedName = box.modelData.m.name
+                        cursorShape: box.movable ? (pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor) : Qt.PointingHandCursor
+                        property point start
+                        onPressed: mouse => {
+                            page.selectedName = box.modelData.m.name;
+                            start = mapToItem(diagram, mouse.x, mouse.y);
+                        }
+                        onPositionChanged: mouse => {
+                            if (!box.movable || !pressed) return;
+                            const pt = mapToItem(diagram, mouse.x, mouse.y);
+                            box.dragX = pt.x - start.x;
+                            box.dragY = pt.y - start.y;
+                        }
+                        onReleased: {
+                            if (box.movable && (Math.abs(box.dragX) > 3 || Math.abs(box.dragY) > 3))
+                                page.dropAt(box.modelData.m,
+                                    box.modelData.x + box.dragX / diagram.k,
+                                    box.modelData.y + box.dragY / diagram.k);
+                            box.dragX = 0;
+                            box.dragY = 0;
+                        }
                     }
                 }
             }
         }
+    }
+
+    Text {
+        Layout.topMargin: -8
+        text: Tr.t("display.selected", (page.selected?.name.startsWith("eDP") ? Tr.t("display.builtinScreen") : (page.selected?.name ?? "")))
+        color: Theme.textSubtle
+        font.family: Theme.font
+        font.pixelSize: 12
     }
 
     GridLayout {
@@ -227,21 +264,6 @@ SetPage {
                     options: [1, 1.25, 1.5, 2].map(v => ({ value: v, label: Math.round(v * 100) + "%" }))
                     current: Number(page.ipc.scale ?? 1)
                     onPicked: v => page.change(page.selected, { scale: v })
-                }
-            }
-            SetRow {
-                visible: page.selected !== page.primary
-                stacked: true
-                label: Tr.t("display.placement")
-                Segmented {
-                    options: [
-                        { value: "left", label: Tr.t("display.left") },
-                        { value: "right", label: Tr.t("display.right") },
-                        { value: "above", label: Tr.t("display.above") },
-                        { value: "below", label: Tr.t("display.below") }
-                    ]
-                    current: page.placement
-                    onPicked: v => page.place(v)
                 }
             }
         }

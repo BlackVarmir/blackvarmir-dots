@@ -3,6 +3,7 @@ import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Widgets
+import Quickshell.Networking
 import Quickshell.Services.Mpris
 import Quickshell.Services.UPower
 
@@ -12,6 +13,17 @@ Item {
     id: surface
 
     required property var lock
+    property string snapshot: ""
+
+    readonly property var wifiNetwork: {
+        const devs = Networking.devices.values;
+        for (let i = 0; i < devs.length; i++) {
+            if (devs[i].type !== DeviceType.Wifi) continue;
+            const nets = devs[i].networks.values;
+            for (let j = 0; j < nets.length; j++) if (nets[j].connected) return nets[j];
+        }
+        return null;
+    }
 
     readonly property string wallpaper: Settings.data.wallpaper
         || (Quickshell.env("HOME") + "/.local/share/blackvarmir/wallpapers/varmir-aura.png")
@@ -24,22 +36,30 @@ Item {
 
     SystemClock { id: clock; precision: SystemClock.Minutes }
 
-    // Тло: розмиті шпалери, затемнення і фірмове сяйво
+    // Тло: знімок робочого столу (або шпалери, якщо знімка немає), що розмивається
+    // і темнішає за 250 мс — як у дизайні
     Image {
         id: wall
         anchors.fill: parent
-        source: "file://" + surface.wallpaper
+        source: surface.snapshot && snapImage.status !== Image.Error ? surface.snapshot : "file://" + surface.wallpaper
         fillMode: Image.PreserveAspectCrop
-        asynchronous: true
+        asynchronous: false
+        cache: false
         visible: false
     }
+    // Перевірка, чи знімок прочитався (інакше — шпалери)
+    Image { id: snapImage; visible: false; source: surface.snapshot; cache: false; asynchronous: false; sourceSize.width: 8 }
     MultiEffect {
+        id: blurFx
         anchors.fill: parent
         source: wall
         blurEnabled: true
         blurMax: 64
-        blur: 1
-        brightness: -0.25
+        blur: 0
+        brightness: 0
+        Component.onCompleted: { blur = 1; brightness = -0.25; }
+        Behavior on blur { NumberAnimation { duration: Theme.slow; easing.type: Easing.OutCubic } }
+        Behavior on brightness { NumberAnimation { duration: Theme.slow; easing.type: Easing.OutCubic } }
     }
     Rectangle {
         anchors.fill: parent
@@ -315,6 +335,13 @@ Item {
                     font.family: Theme.mono
                     font.pixelSize: 11
                 }
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "\uf1eb  " + (!Networking.wifiEnabled ? Tr.t("lock.wifiOff") : (surface.wifiNetwork?.name ?? Tr.t("wifi.notConnected")))
+                color: Theme.textMuted
+                font.family: Theme.mono
+                font.pixelSize: 13
             }
             Text {
                 visible: UPower.displayDevice?.isLaptopBattery ?? false
