@@ -53,7 +53,12 @@ restore_snapshot() {
     trap 'umount "$TOP" 2>/dev/null; rmdir "$TOP" 2>/dev/null' EXIT
     [[ -d "$TOP${snapfs}/$num/snapshot" ]] || die "знімка $num немає"
     # Поточний стан — знімком, щоб відновлення можна було скасувати так само
-    snapper -c root create -t single -c "" -d "Перед відновленням до #$num" --userdata "important=yes" || true
+    local title before
+    title="Перед відновленням до #$num"
+    [[ "$(sed -n 's/^LANG=//p' /etc/locale.conf 2>/dev/null)" == uk* ]] || title="Before restoring #$num"
+    if before=$(snapper -c root create -t single -c "" --print-number -d "$title" --userdata "important=yes,kind=restore,title=$title"); then
+        snapper -c root modify -d "#$before · $(date '+%Y-%m-%d %H:%M') · $title" "$before" || true
+    fi
     ts="$(date +%Y-%m-%d_%H-%M-%S)"
     mv "$TOP/$rootvol" "$TOP/$rootvol-old-$ts"
     btrfs subvolume snapshot "$TOP${snapfs}/$num/snapshot" "$TOP/$rootvol"

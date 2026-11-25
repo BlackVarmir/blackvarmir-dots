@@ -187,6 +187,8 @@ info "Зміна мови, часового поясу, кришки і ават
 step "Знімки системи (snapper) і меню завантаження"
 sudo install -Dm755 "$REPO_DIR/system/bin/blackvarmir-restore-cleanup" /usr/local/bin/blackvarmir-restore-cleanup
 sudo install -Dm755 "$REPO_DIR/system/bin/blackvarmir-bootcheck" /usr/local/bin/blackvarmir-bootcheck
+sudo install -Dm755 "$REPO_DIR/system/bin/blackvarmir-snapshot-info" /usr/local/bin/blackvarmir-snapshot-info
+sudo install -Dm755 "$REPO_DIR/system/bin/blackvarmir-grub-titles" /usr/local/bin/blackvarmir-grub-titles
 if [[ "$(findmnt -no FSTYPE /)" != "btrfs" ]]; then
     warn "корінь не на btrfs — знімки недоступні, крок пропущено"
 else
@@ -209,6 +211,14 @@ else
     sudo snapper -c root set-config "ALLOW_USERS=$USER" SYNC_ACL=yes TIMELINE_CREATE=no \
         NUMBER_LIMIT=10 NUMBER_LIMIT_IMPORTANT=10
     sudo chmod 750 /.snapshots
+    # Квоти btrfs: «Налаштування → Знімки» показує, скільки займають знімки, а snapper
+    # прибирає старі ще й з огляду на місце
+    if ! sudo btrfs qgroup show / >/dev/null 2>&1; then
+        sudo btrfs quota enable /
+    fi
+    sudo snapper -c root setup-quota >/dev/null 2>&1 || true
+    # Опис знімків: що саме оновлюється (кількість, пакети з версіями)
+    sudo install -Dm644 -t /etc/pacman.d/hooks "$REPO_DIR"/system/pacman/06-blackvarmir-snapshot-*.hook
     sudo systemctl enable --now snapper-cleanup.timer >/dev/null
     sudo install -m644 "$REPO_DIR/system/systemd/blackvarmir-restore-cleanup.service" /etc/systemd/system/
     sudo systemctl enable blackvarmir-restore-cleanup.service >/dev/null
@@ -218,6 +228,7 @@ else
         # Знімки в меню GRUB (grub-btrfs) і тимчасові зміни поверх знімка (overlayfs)
         sudo install -Dm644 /dev/stdin /etc/default/grub-btrfs/config <<'EOF'
 GRUB_BTRFS_SUBMENUNAME="Знімки системи"
+GRUB_BTRFS_TITLE_FORMAT=("description")
 GRUB_BTRFS_LIMIT="20"
 GRUB_BTRFS_SHOW_SNAPSHOTS_FOUND="false"
 EOF
@@ -226,6 +237,10 @@ EOF
             sudo mkinitcpio -P >/dev/null
         fi
         sudo systemctl enable --now grub-btrfsd.service >/dev/null
+        # Назви як у дизайні: «#42 · сьогодні 14:02 · перед оновленням (23)»
+        sudo install -m644 "$REPO_DIR"/system/systemd/blackvarmir-grub-titles.{path,service} /etc/systemd/system/
+        sudo systemctl daemon-reload
+        sudo systemctl enable --now blackvarmir-grub-titles.path >/dev/null
 
         # Тема Varmir, шрифт з кирилицею, приховане меню (Shift / Esc або невдале минуле завантаження)
         THEME=/usr/share/grub/themes/blackvarmir
@@ -234,6 +249,12 @@ EOF
         FONT="$(fc-match -f '%{file}' 'GeistMono Nerd Font:style=Regular')"
         [[ -f "$FONT" ]] && sudo grub-mkfont -s 22 -o "$THEME/font.pf2" "$FONT"
         sudo install -m755 "$REPO_DIR/system/grub/grub.d/01_blackvarmir" /etc/grub.d/01_blackvarmir
+        # Пункти «BlackVarmir Arch» замість «Arch Linux, with Linux …»: свій генератор, а
+        # стандартний 10_linux — заглушка, яку pacman не перезапише (NoUpgrade)
+        sudo install -m755 "$REPO_DIR/system/grub/grub.d/09_blackvarmir" /etc/grub.d/09_blackvarmir
+        printf '#!/bin/sh\n# Вимкнено BlackVarmir: пункти меню генерує 09_blackvarmir\nexit 0\n' | sudo tee /etc/grub.d/10_linux >/dev/null
+        grep -q '^NoUpgrade.*etc/grub.d/10_linux' /etc/pacman.conf \
+            || sudo sed -i '/^\[options\]/a NoUpgrade = etc/grub.d/10_linux' /etc/pacman.conf
         set_grub() {
             if grep -qE "^#?$1=" /etc/default/grub; then
                 sudo sed -i -E "s|^#?$1=.*|$1=$2|" /etc/default/grub
@@ -242,7 +263,7 @@ EOF
             fi
         }
         set_grub GRUB_DISTRIBUTOR '"BlackVarmir Arch"'
-        set_grub GRUB_TIMEOUT 2
+        set_grub GRUB_TIMEOUT 3
         set_grub GRUB_TIMEOUT_STYLE hidden
         set_grub GRUB_THEME "\"$THEME/theme.txt\""
         [[ -f "$THEME/font.pf2" ]] && set_grub GRUB_FONT "\"$THEME/font.pf2\""

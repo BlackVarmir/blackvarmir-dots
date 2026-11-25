@@ -33,6 +33,24 @@ SetPage {
     }
     readonly property var confirmItem: Snapshots.list.find(s => s.number === confirm) ?? null
 
+    // «сьогодні о 14:02» — для речень (у списку — «сьогодні, 14:02»)
+    function whenAt(d) {
+        const now = new Date();
+        const days = Math.floor((new Date(now.getFullYear(), now.getMonth(), now.getDate()) - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000);
+        const time = Qt.formatTime(d, Settings.clock24 ? "HH:mm" : "h:mm AP");
+        if (days === 0) return Tr.t("snap.todayAt", time);
+        if (days === 1) return Tr.t("snap.yesterdayAt", time);
+        return d.toLocaleDateString(Tr.locale, "d MMMM");
+    }
+    // «перед оновленням 23 пакетів» / «до оновлення 23 пакетів»
+    function phrase(s, prefix) {
+        if (!s) return "";
+        if (s.kind === "update" && s.pkgs > 0) return Tr.t("snap." + prefix + ".update", Tr.plural(s.pkgs, "plural.packagesGen"));
+        if ((s.kind === "install" || s.kind === "remove") && s.pkgs > 0)
+            return Tr.t("snap." + prefix + "." + s.kind, s.pkgs === 1 ? s.first : Tr.plural(s.pkgs, "plural.packagesGen"));
+        return s.title.charAt(0).toLowerCase() + s.title.slice(1);
+    }
+
     // Не btrfs — пояснення замість розділу
     Text {
         visible: Snapshots.loaded && !Snapshots.available
@@ -72,8 +90,8 @@ SetPage {
                 text: {
                     if (Snapshots.bootedFrom > 0) return Tr.t("snap.bootedFrom", Snapshots.bootedFrom);
                     const last = Snapshots.list[0];
-                    return (last ? Tr.t("snap.last", page.when(last.date), last.title.toLowerCase()) : Tr.t("snap.none"))
-                        + " " + Tr.t("snap.free", Snapshots.freeSpace);
+                    return (last ? Tr.t("snap.last", page.whenAt(last.date), page.phrase(last, "before")) : Tr.t("snap.none"))
+                        + " " + (Snapshots.usedBytes >= 0 ? Tr.t("snap.used", Snapshots.sizeText(Snapshots.usedBytes)) : Tr.t("snap.free", Snapshots.freeSpace));
                 }
                 color: Theme.text
                 font.family: Theme.font
@@ -87,57 +105,70 @@ SetPage {
         }
     }
 
-    // Діалог відновлення
+    // Діалог відновлення — поверх вікна налаштувань
     Rectangle {
+        parent: page.Window.contentItem
+        anchors.fill: parent
+        z: 1000
         visible: page.confirm > 0
-        Layout.fillWidth: true
-        implicitHeight: dlg.implicitHeight + 40
-        radius: 16
-        color: Theme.inset
-        border.width: 1
-        border.color: Theme.accentBorder
-        ColumnLayout {
-            id: dlg
-            x: 22
-            y: 20
-            width: parent.width - 44
-            spacing: 10
-            Text {
-                text: Tr.t("snap.confirmTitle", page.confirm)
-                color: Theme.text
-                font.family: Theme.font
-                font.pixelSize: 17
-                font.weight: Font.DemiBold
-            }
-            Text {
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                textFormat: Text.StyledText
-                text: Tr.t("snap.confirmBody", page.confirmItem ? page.when(page.confirmItem.date) : "", page.confirmItem?.title.toLowerCase() ?? "")
-                color: Theme.textMuted
-                font.family: Theme.font
-                font.pixelSize: 13
-            }
-            Text {
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                text: Tr.t("snap.confirmSafe")
-                color: Theme.textMuted
-                font.family: Theme.font
-                font.pixelSize: 13
-            }
-            Text {
-                visible: page.restoreError.length > 0
-                text: page.restoreError
-                color: Theme.error
-                font.family: Theme.font
-                font.pixelSize: 13
-            }
-            RowLayout {
-                Layout.alignment: Qt.AlignRight
-                spacing: 8
-                VButton { variant: "secondary"; text: Tr.t("common.cancel"); onClicked: page.confirm = 0 }
-                VButton { text: Tr.t("snap.restoreReboot"); onClicked: Snapshots.restore(page.confirm) }
+        color: Qt.rgba(0, 0, 0, 0.5)
+        MouseArea { anchors.fill: parent; onClicked: page.confirm = 0 }
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: 520
+            height: dlg.implicitHeight + 44
+            radius: 18
+            color: Theme.glassStrong
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.1)
+            MouseArea { anchors.fill: parent }
+
+            ColumnLayout {
+                id: dlg
+                x: 22
+                y: 22
+                width: parent.width - 44
+                spacing: 14
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    text: Tr.t("snap.confirmTitle", page.confirm)
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: 17
+                    font.weight: Font.DemiBold
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    textFormat: Text.StyledText
+                    text: Tr.t("snap.confirmBody", page.confirmItem ? page.whenAt(page.confirmItem.date) : "", page.phrase(page.confirmItem, "until"))
+                    color: Theme.textMuted
+                    font.family: Theme.font
+                    font.pixelSize: 13
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    text: Tr.t("snap.confirmSafe")
+                    color: Theme.textMuted
+                    font.family: Theme.font
+                    font.pixelSize: 13
+                }
+                Text {
+                    visible: page.restoreError.length > 0
+                    text: page.restoreError
+                    color: Theme.error
+                    font.family: Theme.font
+                    font.pixelSize: 13
+                }
+                RowLayout {
+                    Layout.alignment: Qt.AlignRight
+                    spacing: 8
+                    VButton { variant: "secondary"; text: Tr.t("common.cancel"); onClicked: page.confirm = 0 }
+                    VButton { text: Tr.t("snap.restoreReboot"); onClicked: Snapshots.restore(page.confirm) }
+                }
             }
         }
     }
@@ -145,52 +176,61 @@ SetPage {
     // Список
     SetCard {
         visible: Snapshots.available
-        label: Tr.t("snap.eyebrow", Snapshots.list.length)
+        label: ""
 
-        SetRow {
-            divider: false
-            label: page.creating ? "" : Tr.t("snap.createHint")
-            RowLayout {
-                spacing: 8
-                Rectangle {
-                    visible: page.creating
-                    implicitWidth: 300
-                    implicitHeight: 36
-                    radius: 8
-                    color: Theme.inset
-                    border.width: 1
-                    border.color: Theme.accentBorder
-                    TextInput {
-                        id: newName
-                        anchors.fill: parent
-                        anchors.leftMargin: 12
-                        anchors.rightMargin: 12
-                        verticalAlignment: TextInput.AlignVCenter
-                        color: Theme.text
-                        font.family: Theme.font
-                        font.pixelSize: 14
-                        maximumLength: 80
-                        clip: true
-                        onAccepted: { Snapshots.create(text.trim()); text = ""; page.creating = false; }
-                        Keys.onEscapePressed: page.creating = false
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            visible: newName.text.length === 0
-                            text: Tr.t("snap.namePlaceholder")
-                            color: Theme.textSubtle
-                            font: newName.font
-                        }
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: 18
+            Layout.rightMargin: 14
+            Layout.topMargin: 2
+            Layout.bottomMargin: 8
+            spacing: 8
+            Text {
+                Layout.fillWidth: true
+                text: Tr.t("snap.eyebrow", Snapshots.list.length)
+                color: Theme.textSubtle
+                font.family: Theme.mono
+                font.pixelSize: 11
+                font.letterSpacing: 1.3
+            }
+            Rectangle {
+                visible: page.creating
+                implicitWidth: 300
+                implicitHeight: 34
+                radius: 8
+                color: Theme.inset
+                border.width: 1
+                border.color: Theme.accentBorder
+                TextInput {
+                    id: newName
+                    anchors.fill: parent
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    verticalAlignment: TextInput.AlignVCenter
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: 14
+                    maximumLength: 80
+                    clip: true
+                    onAccepted: { Snapshots.create(text.trim()); text = ""; page.creating = false; }
+                    Keys.onEscapePressed: page.creating = false
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: newName.text.length === 0
+                        text: Tr.t("snap.namePlaceholder")
+                        color: Theme.textSubtle
+                        font: newName.font
                     }
                 }
-                VButton {
-                    variant: "secondary"
-                    text: page.creating ? Tr.t("common.save") : "+ " + Tr.t("snap.create")
-                    onClicked: {
-                        if (!page.creating) { page.creating = true; newName.forceActiveFocus(); return; }
-                        Snapshots.create(newName.text.trim());
-                        newName.text = "";
-                        page.creating = false;
-                    }
+            }
+            VButton {
+                variant: "secondary"
+                text: page.creating ? Tr.t("common.save") : "+ " + Tr.t("snap.create")
+                onClicked: {
+                    if (!page.creating) { page.creating = true; newName.forceActiveFocus(); return; }
+                    Snapshots.create(newName.text.trim());
+                    newName.text = "";
+                    page.creating = false;
                 }
             }
         }

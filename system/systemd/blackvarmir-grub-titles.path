@@ -1,0 +1,8 @@
+[Unit]
+Description=BlackVarmir: назви знімків у меню GRUB
+
+[Path]
+PathChanged=/boot/grub/grub-btrfs.cfg
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,6 @@
+[Unit]
+Description=BlackVarmir: назви знімків у меню GRUB
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/blackvarmir-grub-titles

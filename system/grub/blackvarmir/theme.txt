@@ -3,13 +3,11 @@ title-text: ""
 desktop-color: "#050506"
 terminal-box: "terminal_box_*.png"
 
-+ label {
+# Назва з фірмовим градієнтом (картинка: GRUB не вміє градієнтний текст)
++ image {
     top = 24%
-    left = 0
-    width = 100%
-    align = "center"
-    text = "BlackVarmir Arch"
-    color = "#10b981"
+    left = 50%-194
+    file = "title.png"
 }
 
 + boot_menu {
@@ -35,15 +33,6 @@ terminal-box: "terminal_box_*.png"
     width = 100%
     align = "center"
     id = "__timeout__"
-    text = "Автоматично через %d с"
-    color = "#52525b"
-}
-
-+ label {
-    top = 88%
-    left = 0
-    width = 100%
-    align = "center"
-    text = "↑↓ вибір · Enter завантажити · e змінити"
+    text = "↑↓ вибір · Enter завантажити · автоматично через %d с"
     color = "#52525b"
 }
