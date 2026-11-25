@@ -1,0 +1,2 @@
+# AUR (ставиться через paru). Драйвер Nvidia install.sh додає сам за типом карти.
+ttf-geist

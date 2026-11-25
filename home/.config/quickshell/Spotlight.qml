@@ -1,0 +1,361 @@
+import QtQuick
+import Quickshell
+import Quickshell.Wayland
+import Quickshell.Widgets
+
+// Spotlight: Super + Space.
+// Без префікса шукає застосунки. Префікси:
+//   =  обчислити вираз (Enter копіює результат)
+//   >  виконати команду в терміналі
+//   ?  шукати в інтернеті
+// Список застосунків Quickshell тримає в пам'яті і сам оновлює,
+// тому пошук миттєвий і не звертається до диска під час набору.
+PanelWindow {
+    id: spotlight
+
+    visible: Panels.spotlightOpen
+    color: "transparent"
+
+    anchors {
+        top: true
+        bottom: true
+        left: true
+        right: true
+    }
+    exclusionMode: ExclusionMode.Ignore
+
+    WlrLayershell.namespace: "varmir-spotlight"
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+
+    property string query: ""
+    property int current: 0
+    readonly property int maxResults: 8
+
+    readonly property var results: {
+        const q = query.trim();
+        if (q.length === 0) return [];
+
+        if (q.startsWith("=")) {
+            const expr = q.slice(1).trim();
+            const value = calc(expr);
+            return value === null ? [] : [{
+                kind: "calc", title: value, subtitle: "Результат · Enter копіює", glyph: "="
+            }];
+        }
+        if (q.startsWith(">")) {
+            const cmd = q.slice(1).trim();
+            return cmd.length === 0 ? [] : [{
+                kind: "cmd", title: cmd, subtitle: "Виконати в новому терміналі", glyph: "", payload: cmd
+            }];
+        }
+        if (q.startsWith("?")) {
+            const text = q.slice(1).trim();
+            return text.length === 0 ? [] : [{
+                kind: "web", title: text, subtitle: "Шукати в інтернеті", glyph: "", payload: text
+            }];
+        }
+        return searchApps(q);
+    }
+
+    // Безпечний калькулятор: лише цифри, оператори і дужки
+    function calc(expr) {
+        if (!/^[0-9+\-*/().,%\s^]+$/.test(expr)) return null;
+        try {
+            const js = expr.replace(/,/g, ".").replace(/\^/g, "**");
+            const v = Function(`"use strict"; return (${js});`)();
+            if (typeof v !== "number" || !isFinite(v)) return null;
+            return String(Math.round(v * 1e10) / 1e10);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function searchApps(q) {
+        const needle = q.toLowerCase();
+        const scored = [];
+        const apps = DesktopEntries.applications.values;
+        for (let i = 0; i < apps.length; i++) {
+            const a = apps[i];
+            if (a.noDisplay) continue;
+            const name = a.name.toLowerCase();
+            const generic = (a.genericName || "").toLowerCase();
+            const keywords = (a.keywords || []).join(" ").toLowerCase();
+            let score = 0;
+            if (name.startsWith(needle)) score = 100;
+            else if (name.indexOf(" " + needle) !== -1) score = 80;
+            else if (name.indexOf(needle) !== -1) score = 60;
+            else if (generic.indexOf(needle) !== -1) score = 40;
+            else if (keywords.indexOf(needle) !== -1) score = 30;
+            if (score > 0) scored.push({ score: score - name.length * 0.1, entry: a });
+        }
+        scored.sort((x, y) => y.score - x.score);
+        return scored.slice(0, maxResults).map(s => ({
+            kind: "app",
+            title: s.entry.name,
+            subtitle: s.entry.genericName || s.entry.comment || "Застосунок",
+            icon: s.entry.icon,
+            entry: s.entry
+        }));
+    }
+
+    function activate(index) {
+        const r = results[index];
+        if (!r) return;
+        if (r.kind === "app") r.entry.execute();
+        else if (r.kind === "calc") Quickshell.execDetached(["wl-copy", r.title]);
+        else if (r.kind === "cmd") Quickshell.execDetached(["kitty", "--hold", "sh", "-c", r.payload]);
+        else if (r.kind === "web") Quickshell.execDetached(["xdg-open", "https://duckduckgo.com/?q=" + encodeURIComponent(r.payload)]);
+        Panels.spotlightOpen = false;
+    }
+
+    onVisibleChanged: {
+        if (visible) {
+            input.text = "";
+            current = 0;
+            input.forceActiveFocus();
+        }
+    }
+    onResultsChanged: current = 0
+
+    // Затемнення фону; клік повз панель закриває Spotlight
+    Rectangle {
+        anchors.fill: parent
+        color: Qt.rgba(6 / 255, 6 / 255, 7 / 255, 0.45)
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: Panels.spotlightOpen = false
+        }
+    }
+
+    Rectangle {
+        id: card
+        width: 780
+        x: (parent.width - width) / 2
+        y: parent.height * 0.18
+        height: column.implicitHeight
+        radius: Theme.radiusOverlay
+        color: Theme.glassStrong
+        border.width: 1
+        border.color: Qt.rgba(1, 1, 1, 0.10)
+        clip: true
+
+        // Поява: проявлення + підйом на 12 px за 150 мс
+        opacity: spotlight.visible ? 1 : 0
+        transform: Translate { y: spotlight.visible ? 0 : 12 }
+        Behavior on opacity { NumberAnimation { duration: Theme.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.ease } }
+
+        // Поглинаємо кліки, щоб вони не закривали Spotlight
+        MouseArea { anchors.fill: parent }
+
+        Column {
+            id: column
+            width: parent.width
+
+            // Рядок пошуку
+            Item {
+                width: parent.width
+                height: 72
+
+                Text {
+                    id: searchGlyph
+                    anchors.left: parent.left
+                    anchors.leftMargin: 24
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: ""
+                    color: Theme.emerald
+                    font.family: Theme.mono
+                    font.pixelSize: 20
+                }
+
+                TextInput {
+                    id: input
+                    anchors.left: searchGlyph.right
+                    anchors.leftMargin: 14
+                    anchors.right: parent.right
+                    anchors.rightMargin: 24
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: Theme.text
+                    selectionColor: Theme.accentBorder
+                    font.family: Theme.font
+                    font.pixelSize: 24
+                    clip: true
+                    onTextChanged: spotlight.query = text
+
+                    Keys.onPressed: event => {
+                        if (event.key === Qt.Key_Escape) {
+                            Panels.spotlightOpen = false;
+                        } else if (event.key === Qt.Key_Down || (event.key === Qt.Key_Tab && !(event.modifiers & Qt.ShiftModifier))) {
+                            spotlight.current = Math.min(spotlight.current + 1, spotlight.results.length - 1);
+                        } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Backtab) {
+                            spotlight.current = Math.max(spotlight.current - 1, 0);
+                        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                            spotlight.activate(spotlight.current);
+                        } else {
+                            return;
+                        }
+                        event.accepted = true;
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: input.text.length === 0
+                        text: "Пошук застосунків, = обчислити, > команда, ? веб"
+                        color: Theme.textSubtle
+                        font: input.font
+                    }
+                }
+            }
+
+            Rectangle {
+                width: parent.width
+                height: 1
+                color: Qt.rgba(1, 1, 1, 0.07)
+                visible: spotlight.results.length > 0
+            }
+
+            // Результати
+            ListView {
+                id: list
+                width: parent.width
+                height: contentHeight + (count > 0 ? 16 : 0)
+                topMargin: 8
+                bottomMargin: 8
+                interactive: false
+                model: spotlight.results
+                currentIndex: spotlight.current
+
+                delegate: Item {
+                    id: row
+                    required property var modelData
+                    required property int index
+                    readonly property bool selected: index === spotlight.current
+
+                    width: ListView.view.width
+                    height: 56
+
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.leftMargin: 12
+                        anchors.rightMargin: 12
+                        radius: 12
+                        color: row.selected ? Theme.accentSoft : (hover.containsMouse ? Theme.hover : "transparent")
+                        border.width: 1
+                        border.color: row.selected ? Theme.accentBorder : "transparent"
+
+                        Rectangle {
+                            id: iconTile
+                            anchors.left: parent.left
+                            anchors.leftMargin: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 38
+                            height: 38
+                            radius: 10
+                            color: Qt.rgba(1, 1, 1, 0.06)
+                            border.width: 1
+                            border.color: Theme.hairline
+
+                            IconImage {
+                                anchors.centerIn: parent
+                                implicitSize: 26
+                                visible: row.modelData.kind === "app"
+                                source: row.modelData.kind === "app"
+                                    ? Quickshell.iconPath(row.modelData.icon, "application-x-executable") : ""
+                                asynchronous: true
+                            }
+                            Text {
+                                anchors.centerIn: parent
+                                visible: row.modelData.kind !== "app"
+                                text: row.modelData.glyph ?? ""
+                                color: Theme.cyan
+                                font.family: Theme.mono
+                                font.pixelSize: 17
+                            }
+                        }
+
+                        Column {
+                            anchors.left: iconTile.right
+                            anchors.leftMargin: 14
+                            anchors.right: enterHint.left
+                            anchors.rightMargin: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 1
+
+                            Text {
+                                width: parent.width
+                                elide: Text.ElideRight
+                                text: row.modelData.title
+                                color: Theme.text
+                                font.family: row.modelData.kind === "cmd" ? Theme.mono : Theme.font
+                                font.pixelSize: 15
+                                font.weight: row.selected ? Font.DemiBold : Font.Normal
+                            }
+                            Text {
+                                width: parent.width
+                                elide: Text.ElideRight
+                                text: row.modelData.subtitle
+                                color: Theme.textMuted
+                                font.family: Theme.font
+                                font.pixelSize: 13
+                            }
+                        }
+
+                        Text {
+                            id: enterHint
+                            anchors.right: parent.right
+                            anchors.rightMargin: 14
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: row.selected
+                            text: "⏎"
+                            color: Theme.textMuted
+                            font.family: Theme.mono
+                            font.pixelSize: 13
+                        }
+
+                        MouseArea {
+                            id: hover
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onEntered: spotlight.current = row.index
+                            onClicked: spotlight.activate(row.index)
+                        }
+                    }
+                }
+            }
+
+            // Підказки клавіш
+            Rectangle {
+                width: parent.width
+                height: 44
+                color: Qt.rgba(1, 1, 1, 0.02)
+
+                Rectangle {
+                    width: parent.width
+                    height: 1
+                    color: Qt.rgba(1, 1, 1, 0.07)
+                }
+
+                Text {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 24
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "↑↓ вибір    ⏎ відкрити    Esc закрити"
+                    color: Theme.textMuted
+                    font.family: Theme.font
+                    font.pixelSize: 12
+                }
+                Text {
+                    anchors.right: parent.right
+                    anchors.rightMargin: 24
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "= обчислити   > команда   ? веб"
+                    color: Theme.textSubtle
+                    font.family: Theme.mono
+                    font.pixelSize: 12
+                }
+            }
+        }
+    }
+}

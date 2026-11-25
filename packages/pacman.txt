@@ -1,0 +1,66 @@
+# Офіційні репозиторії Arch (core/extra). Рядки з # ігноруються.
+
+# --- Система ---
+base-devel
+git
+networkmanager
+bluez
+bluez-utils
+pipewire
+pipewire-pulse
+pipewire-alsa
+wireplumber
+power-profiles-daemon
+zram-generator
+plocate
+xdg-user-dirs
+pciutils
+
+# --- Графіка Intel (Hyprland рендерить на iGPU) ---
+mesa
+vulkan-intel
+intel-media-driver
+libva-utils
+
+# --- Hyprland і екосистема ---
+hyprland
+xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk
+hyprlock
+hypridle
+hyprpolkitagent
+qt6-wayland
+sddm
+
+# --- Оболонка ---
+quickshell
+awww
+
+# --- Термінал і командний рядок ---
+kitty
+fish
+starship
+zoxide
+eza
+bat
+fzf
+fd
+ripgrep
+btop
+fastfetch
+
+# --- Утиліти робочого стола ---
+wl-clipboard
+cliphist
+grim
+slurp
+brightnessctl
+playerctl
+nautilus
+pavucontrol
+
+# --- Шрифти та іконки ---
+otf-geist-mono-nerd
+noto-fonts
+noto-fonts-emoji
+papirus-icon-theme

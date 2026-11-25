@@ -1,0 +1,40 @@
+# starship · BlackVarmir
+# Вигляд: ~/varmir  main ❯
+"$schema" = "https://starship.rs/config-schema.json"
+
+add_newline = false
+format = "$directory$git_branch$git_status$python$nodejs$dotnet$cmd_duration$line_break$character"
+
+[directory]
+style = "bold #22d3ee"
+truncation_length = 3
+truncate_to_repo = true
+
+[git_branch]
+format = "[$symbol$branch]($style) "
+symbol = " "
+style = "#10b981"
+
+[git_status]
+style = "#f59e0b"
+
+[python]
+format = "[py $version]($style) "
+style = "#71717a"
+
+[nodejs]
+format = "[node $version]($style) "
+style = "#71717a"
+
+[dotnet]
+format = "[.NET $version]($style) "
+style = "#71717a"
+
+[cmd_duration]
+min_time = 2000
+format = "[$duration]($style) "
+style = "#71717a"
+
+[character]
+success_symbol = "[❯](bold #10b981)"
+error_symbol = "[❯](bold #ef4444)"
