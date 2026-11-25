@@ -30,6 +30,10 @@ PanelWindow {
 
     // main | wifi | bluetooth | power
     property string page: "main"
+    Connections {
+        target: Panels
+        function onPowerRequestChanged() { if (Panels.powerRequest) cc.page = "power"; }
+    }
 
     readonly property var wifiDevice: {
         const list = Networking.devices.values;
@@ -158,11 +162,7 @@ PanelWindow {
                 IconButton {
                     glyph: ""
                     tip: Tr.t("cc.screenshot")
-                    onClicked: {
-                        Panels.closeAll();
-                        Quickshell.execDetached(["sh", "-c",
-                            "sleep 0.3; mkdir -p ~/Pictures/Screenshots; grim -g \"$(slurp -d)\" - | tee ~/Pictures/Screenshots/$(date +%Y-%m-%d_%H-%M-%S).png | wl-copy"]);
-                    }
+                    onClicked: Capture.open()
                 }
                 IconButton {
                     glyph: "\uf013"

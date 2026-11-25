@@ -3,9 +3,14 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
 import Quickshell.Io
+import Quickshell.Networking
+import Quickshell.Bluetooth
 
 // Spotlight: Super + Space.
-// Без префікса шукає застосунки, а з 3 літер — ще й файли в домашній теці. Префікси:
+// Без префікса шукає застосунки, команди системи («перез», «wifi»), перетворення
+// («100 usd в грн», «5 km в mi»), а з 3 літер — ще й файли в домашній теці. Префікси:
+//   :  емодзі («:вогонь»), Enter вставляє
+//   #  історія буфера обміну (відкриває її вікно)
 //   /  лише файли (Enter відкриває, Shift + Enter показує в теці)
 //   =  обчислити вираз (Enter копіює результат)
 //   >  виконати команду в терміналі
@@ -43,7 +48,7 @@ PanelWindow {
     readonly property string fileTerms: {
         const q = query.trim();
         if (q.startsWith("/")) return q.slice(1).trim();
-        if (/^[=>?]/.test(q)) return "";
+        if (/^[=>?:#]/.test(q)) return "";
         return q.length >= 3 ? q : "";
     }
     onFileTermsChanged: {
@@ -75,13 +80,20 @@ PanelWindow {
         if (q.startsWith("/")) {
             return fileResults.slice(0, maxResults);
         }
+        if (q.startsWith(":")) {
+            return Emoji.search(q.slice(1), maxResults).map(e => ({
+                kind: "emoji", title: Tr.lang === "uk" && e.uk ? e.uk : e.en, subtitle: Tr.lang === "uk" ? e.en : e.uk,
+                glyph: e.char, payload: e.char
+            }));
+        }
         if (q.startsWith("?")) {
             const text = q.slice(1).trim();
             return text.length === 0 ? [] : [{
                 kind: "web", title: text, subtitle: Tr.t("sp.web"), glyph: "", payload: text
             }];
         }
-        const apps = searchSettings(q).concat(searchApps(q));
+        const conv = convertResult(q);
+        const apps = conv.concat(searchSystem(q), searchSettings(q), searchApps(q));
         // Без префікса: розділи налаштувань і застосунки першими, під ними до 3 файлів
         return apps.slice(0, maxResults - Math.min(3, fileResults.length)).concat(fileResults.slice(0, 3));
     }
@@ -168,6 +180,62 @@ PanelWindow {
         }
     }
 
+    // ───── Перетворення одиниць і валют ─────
+    function convertResult(q) {
+        const r = Convert.parse(q);
+        if (!r) return [];
+        if (r.pending) return [{ kind: "info", title: Tr.t("sp.ratesLoading"), subtitle: r.from + " → " + r.to, glyph: "₴" }];
+        if (r.kind === "currency") {
+            const sub = Tr.t("sp.rateNbu", "1 " + r.from + " = " + Convert.fmt(r.rate, 4) + " " + r.to, Convert.ratesDate.slice(6, 8) + "." + Convert.ratesDate.slice(4, 6))
+                + (Convert.ratesStale ? " · " + Tr.t("sp.ratesStale") : "");
+            return [{ kind: "calc", title: Convert.fmt(r.result, 2) + " " + r.to, subtitle: sub, glyph: "₴", copy: r.result.toFixed(2) }];
+        }
+        return [{ kind: "calc", title: Convert.fmt(r.result) + " " + r.to, subtitle: Convert.fmt(r.value) + " " + r.from + " · " + Tr.t("sp.calcResult"), glyph: "⇄", copy: String(Number(r.result.toFixed(6))) }];
+    }
+
+    // ───── Команди системи ─────
+    readonly property var systemCommands: [
+        { id: "poweroff", glyph: "\uf011", words: "вимкнути вимкнення shutdown power off poweroff" },
+        { id: "reboot", glyph: "\uf01e", words: "перезавантажити перезавантаження restart reboot" },
+        { id: "suspend", glyph: "\uf186", words: "сон заснути призупинити sleep suspend" },
+        { id: "logout", glyph: "\uf08b", words: "вийти вихід log out logout sign out" },
+        { id: "lock", glyph: "\uf023", words: "заблокувати блокування lock" },
+        { id: "wifi", glyph: "\uf1eb", words: "wi-fi wifi вайфай мережа network" },
+        { id: "bluetooth", glyph: "\uf293", words: "bluetooth блютуз" },
+        { id: "dnd", glyph: "\uf1f6", words: "не турбувати do not disturb dnd сповіщення" },
+        { id: "night", glyph: "\uf186", words: "нічне світло night light" },
+        { id: "screenshot", glyph: "\uf030", words: "знімок екрана скріншот screenshot screen capture" },
+        { id: "record", glyph: "\uf03d", words: "запис екрана записати record screen recording" }
+    ]
+    function systemTitle(id) {
+        if (id === "wifi") return Tr.t("sys.wifi") + ": " + (Networking.wifiEnabled ? Tr.t("sys.turnOff") : Tr.t("sys.turnOn"));
+        if (id === "bluetooth") return "Bluetooth: " + (Bluetooth.defaultAdapter?.enabled ? Tr.t("sys.turnOff") : Tr.t("sys.turnOn"));
+        if (id === "dnd") return Tr.t("cc.dnd") + ": " + (NotifStore.dnd ? Tr.t("sys.turnOff") : Tr.t("sys.turnOn"));
+        if (id === "night") return Tr.t("cc.nightLight") + ": " + (Sys.nightLight ? Tr.t("sys.turnOff") : Tr.t("sys.turnOn"));
+        return Tr.t("sys." + id);
+    }
+    function searchSystem(q) {
+        const needle = q.toLowerCase();
+        if (needle.length < 3) return [];
+        return systemCommands
+            .filter(c => c.words.split(" ").some(w => w.startsWith(needle)) || c.words.indexOf(needle) !== -1)
+            .slice(0, 3)
+            .map(c => ({ kind: "system", title: systemTitle(c.id), subtitle: Tr.t("sys.label"), glyph: c.glyph, payload: c.id }));
+    }
+    function runSystem(id) {
+        if (id === "poweroff" || id === "reboot") { Panels.openPower(id); return true; }
+        if (id === "suspend") Quickshell.execDetached(["systemctl", "suspend"]);
+        else if (id === "logout") Quickshell.execDetached(["sh", "-c", "command -v hyprshutdown >/dev/null && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"]);
+        else if (id === "lock") Quickshell.execDetached(["loginctl", "lock-session"]);
+        else if (id === "wifi") Networking.wifiEnabled = !Networking.wifiEnabled;
+        else if (id === "bluetooth") { if (Bluetooth.defaultAdapter) Bluetooth.defaultAdapter.enabled = !Bluetooth.defaultAdapter.enabled; }
+        else if (id === "dnd") NotifStore.dnd = !NotifStore.dnd;
+        else if (id === "night") Sys.nightLight = !Sys.nightLight;
+        else if (id === "screenshot") { Capture.action = "shot"; Capture.open(); return true; }
+        else if (id === "record") { Capture.action = "record"; Capture.open(); return true; }
+        return false;
+    }
+
     // Розділи «Налаштувань»: шукаємо за назвою розділу обома мовами і за словом «налаштування»
     readonly property var settingsSections: ["lang", "keyboard", "display", "appearance", "sound", "power", "user", "about"]
     function searchSettings(q) {
@@ -220,12 +288,32 @@ PanelWindow {
         if (!r) return;
         if (r.kind === "app") r.entry.execute();
         else if (r.kind === "file") Quickshell.execDetached(reveal ? ["nautilus", "--select", r.payload] : ["xdg-open", r.payload]);
-        else if (r.kind === "calc") Quickshell.execDetached(["wl-copy", r.title]);
+        else if (r.kind === "calc") Quickshell.execDetached(["wl-copy", r.copy ?? r.title]);
+        else if (r.kind === "info") return;
+        else if (r.kind === "system") { if (runSystem(r.payload)) return; }
+        else if (r.kind === "emoji") {
+            Quickshell.execDetached(["wl-copy", r.payload]);
+            Panels.spotlightOpen = false;
+            emojiPaste.text = r.payload;
+            emojiPaste.start();
+            return;
+        }
         else if (r.kind === "cmd") Quickshell.execDetached(["kitty", "--hold", "sh", "-c", r.payload]);
         else if (r.kind === "setting") { Panels.openSettings(r.payload); return; }
         else if (r.kind === "web") Quickshell.execDetached(["xdg-open", "https://duckduckgo.com/?q=" + encodeURIComponent(r.payload)]);
         Panels.spotlightOpen = false;
     }
+
+    // Емодзі вводимо, коли фокус уже повернувся у вікно
+    Timer {
+        id: emojiPaste
+        property string text: ""
+        interval: 180
+        onTriggered: Quickshell.execDetached(["wtype", "--", text])
+    }
+
+    // «#» — перейти до історії буфера обміну
+    onQueryChanged: if (query.startsWith("#")) { Panels.closeAll(); Panels.clipboardOpen = true; }
 
     onVisibleChanged: {
         if (visible) {

@@ -21,4 +21,13 @@ ShellRoot {
     Osd {}
     AltTab {}
     Lock {}
+
+    // Етап 6: знімки й запис, буфер обміну, календар і погода
+    Variants {
+        model: Quickshell.screens
+        CaptureOverlay {}
+    }
+    CaptureToast {}
+    Clipboard {}
+    CalendarPopup {}
 }

@@ -202,6 +202,16 @@ Singleton {
 
             // Клавіатура
             property list<string> kbLayouts: ["us", "ua"]
+            // Погода: auto — за Wi-Fi / IP, manual — точка нижче
+            property string weatherMode: "auto"
+            property string weatherName: ""
+            property real weatherLat: 0
+            property real weatherLon: 0
+            property bool weatherInBar: true
+            // Необов'язковий ключ Google Geolocation API (точніше за beaconDB там, де той не має даних)
+            property string geoKey: ""
+            // Звук під час запису екрана: none · system · mic
+            property string recordAudio: "none"
             property string kbToggle: "alt_shift"
             property int repeatDelay: 300
             property int repeatRate: 40

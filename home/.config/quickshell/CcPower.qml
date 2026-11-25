@@ -22,6 +22,8 @@ ColumnLayout {
         else if (action === "reboot") Quickshell.execDetached(["systemctl", "reboot"]);
     }
 
+    Component.onCompleted: if (Panels.powerRequest) { start(Panels.powerRequest); Panels.powerRequest = ""; }
+
     function start(action) {
         pending = action;
         secondsLeft = 10;

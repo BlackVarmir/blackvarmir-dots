@@ -158,11 +158,59 @@ PanelWindow {
         }
     }
 
-    // ───────────── Центр ─────────────
+    // ───────────── Центр (клік відкриває календар і погоду) ─────────────
+    // Під час запису екрана ліворуч від годинника — острівець з часом запису
     Island {
+        visible: Capture.recording
+        anchors.right: clockIsland.left
+        anchors.rightMargin: 8
+        anchors.verticalCenter: parent.verticalCenter
+        padding: 14
+        spacing: 10
+        clickable: true
+        onClicked: Capture.stop()
+
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            width: 9
+            height: 9
+            radius: 5
+            color: Theme.error
+            SequentialAnimation on opacity {
+                running: Capture.recording
+                loops: Animation.Infinite
+                NumberAnimation { to: 0.35; duration: 700 }
+                NumberAnimation { to: 1; duration: 700 }
+            }
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: {
+                const sec = Math.floor((recClock.date.getTime() - Capture.recordStart) / 1000);
+                return String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(Math.max(0, sec) % 60).padStart(2, "0");
+            }
+            color: Theme.text
+            font.family: Theme.mono
+            font.pixelSize: 13
+            SystemClock { id: recClock; precision: SystemClock.Seconds; enabled: Capture.recording }
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: ""
+            color: Theme.textMuted
+            font.family: Theme.mono
+            font.pixelSize: 11
+        }
+    }
+
+    Island {
+        id: clockIsland
         anchors.centerIn: parent
         padding: 18
         spacing: 10
+        clickable: true
+        highlighted: Panels.calendarOpen
+        onClicked: Panels.toggleCalendar()
 
         SystemClock {
             id: clock
@@ -183,6 +231,15 @@ PanelWindow {
             text: clock.date.toLocaleDateString(Tr.locale, "ddd, d MMMM")
             color: Theme.textMuted
             font.family: Theme.font
+            font.pixelSize: 13
+        }
+
+        Text {
+            visible: Settings.data.weatherInBar && Weather.ready
+            anchors.verticalCenter: parent.verticalCenter
+            text: Weather.glyph(Weather.current?.code ?? 3, Weather.current?.isDay) + " " + Weather.deg(Weather.current?.temp ?? 0)
+            color: Weather.stale ? Theme.textSubtle : Theme.textMuted
+            font.family: Theme.mono
             font.pixelSize: 13
         }
     }
