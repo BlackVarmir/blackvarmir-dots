@@ -15,6 +15,7 @@ bind(mod .. " + SPACE", hl.dsp.exec_cmd("qs ipc call spotlight toggle"))
 
 bind(mod .. " + TAB",          hl.dsp.exec_cmd("qs ipc call overview toggle"))
 bind(mod .. " + N",            hl.dsp.exec_cmd("qs ipc call control toggle"))
+bind(mod .. " + comma",        hl.dsp.exec_cmd("qs ipc call settings toggle"))
 -- Швидко повернутися на попередній стіл (без огляду)
 bind(mod .. " + grave",        hl.dsp.focus({ workspace = "previous" }))
 

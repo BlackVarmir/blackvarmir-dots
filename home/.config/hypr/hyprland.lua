@@ -10,3 +10,12 @@ require("modules/input")      -- клавіатура, тачпад, жести
 require("modules/rules")      -- правила вікон, шарів і робочих столів
 require("modules/binds")      -- гарячі клавіші
 require("modules/autostart")  -- що запускається разом із сесією
+
+-- Налаштування з застосунку «Налаштування» (Super + ,) — поверх усього вище.
+-- Файл лежить поза репозиторієм, тож git pull його не зачіпає.
+local user = (os.getenv("HOME") or "") .. "/.config/blackvarmir/hyprland-user.lua"
+local f = io.open(user, "r")
+if f then
+    f:close()
+    dofile(user)
+end

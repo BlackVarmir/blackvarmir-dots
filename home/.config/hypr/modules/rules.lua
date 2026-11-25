@@ -46,6 +46,15 @@ hl.window_rule({
     size   = { "monitor_w * 0.45", "monitor_h * 0.6" },
 })
 
+-- Вікно «Налаштування» (Quickshell): плаваюче, по центру
+hl.window_rule({
+    name   = "varmir-settings",
+    match  = { class = "^org.quickshell$" },
+    float  = true,
+    center = true,
+    size   = { 1280, 820 },
+})
+
 -- Плаваючий термінал (Super + Shift + Enter)
 hl.window_rule({
     name   = "floating-kitty",

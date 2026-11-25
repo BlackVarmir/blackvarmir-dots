@@ -59,7 +59,7 @@ Rectangle {
                     id: appName
                     width: parent.width - 24
                     elide: Text.ElideRight
-                    text: (card.notification.appName || "Сповіщення").toUpperCase()
+                    text: (card.notification.appName || Tr.t("notif.default")).toUpperCase()
                     color: Theme.textSubtle
                     font.family: Theme.mono
                     font.pixelSize: 11

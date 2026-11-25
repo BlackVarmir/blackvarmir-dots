@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# Помічник застосунку «Налаштування» для дій, які потребують прав root.
+# Запускається лише через pkexec (система попросить пароль):
+#   pkexec /usr/local/bin/blackvarmir-settings-helper <дія> [аргументи]
+#
+# Дії:
+#   locale   <мова> <формати>   uk_UA.UTF-8 en_US.UTF-8 — увімкнути в locale.gen, згенерувати, застосувати
+#   timezone <зона>             Europe/Kyiv
+#   ntp      <true|false>
+#   lid      <suspend|lock|ignore>
+#   avatar   <файл>             аватар для екрана входу (SDDM)
+#   realname <ім'я>
+#
+# Кожен аргумент перевіряється за суворим шаблоном — довільних команд скрипт не виконує.
+
+set -euo pipefail
+
+die() { echo "blackvarmir-settings-helper: $*" >&2; exit 1; }
+
+[[ $EUID -eq 0 ]] || die "запускай через pkexec"
+[[ -n "${PKEXEC_UID:-}" ]] || die "запускай через pkexec"
+USER_NAME="$(id -nu "$PKEXEC_UID")"
+
+valid_locale() { [[ "$1" =~ ^[a-z]{2,3}_[A-Z]{2}\.UTF-8$ ]]; }
+
+enable_locale() {
+    local loc="$1"
+    grep -qE "^${loc//./\\.} UTF-8" /etc/locale.gen && return 0
+    if grep -qE "^#\s*${loc//./\\.} UTF-8" /etc/locale.gen; then
+        sed -i -E "s/^#\s*(${loc//./\\.} UTF-8)/\1/" /etc/locale.gen
+    else
+        echo "$loc UTF-8" >> /etc/locale.gen
+    fi
+    return 1
+}
+
+action="${1:-}"
+shift || true
+
+case "$action" in
+    locale)
+        lang="${1:-}"; formats="${2:-$lang}"
+        valid_locale "$lang" && valid_locale "$formats" || die "невірна локаль"
+        regen=0
+        enable_locale "$lang" || regen=1
+        enable_locale "$formats" || regen=1
+        if (( regen )); then locale-gen; fi
+        localectl set-locale "LANG=$lang" \
+            "LC_TIME=$formats" "LC_NUMERIC=$formats" "LC_MONETARY=$formats" \
+            "LC_PAPER=$formats" "LC_MEASUREMENT=$formats"
+        ;;
+    timezone)
+        tz="${1:-}"
+        [[ "$tz" =~ ^[A-Za-z0-9_+-]+(/[A-Za-z0-9_+-]+)*$ && -f "/usr/share/zoneinfo/$tz" ]] || die "невірний часовий пояс"
+        timedatectl set-timezone "$tz"
+        ;;
+    ntp)
+        [[ "${1:-}" == "true" || "${1:-}" == "false" ]] || die "очікується true або false"
+        timedatectl set-ntp "$1"
+        ;;
+    lid)
+        case "${1:-}" in suspend|lock|ignore) ;; *) die "невірна дія для кришки" ;; esac
+        install -Dm644 /dev/stdin /etc/systemd/logind.conf.d/10-blackvarmir.conf <<EOF
+# Згенеровано «Налаштуваннями» BlackVarmir
+[Login]
+HandleLidSwitch=$1
+HandleLidSwitchExternalPower=$1
+EOF
+        systemctl kill -s HUP systemd-logind
+        ;;
+    avatar)
+        src="${1:-}"
+        [[ -f "$src" ]] || die "файл не знайдено"
+        # Лише файли самого користувача
+        [[ "$(stat -c %u "$src")" == "$PKEXEC_UID" ]] || die "файл належить іншому користувачу"
+        install -Dm644 "$src" "/usr/share/sddm/faces/$USER_NAME.face.icon"
+        ;;
+    realname)
+        name="${1:-}"
+        [[ -n "$name" && ${#name} -le 64 && "$name" != *[:,=$'\n']* ]] || die "невірне ім'я"
+        usermod -c "$name" "$USER_NAME"
+        ;;
+    *)
+        die "невідома дія: $action"
+        ;;
+esac

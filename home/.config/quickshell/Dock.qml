@@ -192,20 +192,20 @@ Rectangle {
                         for (let i = 0; i < app.wins.length; i++)
                             list.push({ kind: "item", glyph: "", text: app.wins[i].title || e.name, act: "focus", win: app.wins[i], accent: app.wins[i].activated });
                         list.push({ kind: "sep" });
-                        list.push({ kind: "item", glyph: app.wins.length > 0 ? "" : "", text: app.wins.length > 0 ? "Нове вікно" : "Відкрити", act: "launch" });
+                        list.push({ kind: "item", glyph: app.wins.length > 0 ? "" : "", text: app.wins.length > 0 ? Tr.t("dock.newWindow") : Tr.t("dock.open"), act: "launch" });
                         const actions = e.actions ?? [];
                         for (let i = 0; i < actions.length; i++)
                             list.push({ kind: "item", glyph: "", text: actions[i].name, act: "action", action: actions[i] });
                         list.push({ kind: "sep" });
                         if (app.modelData.pinned) {
-                            if (app.pinPos > 0) list.push({ kind: "item", glyph: "", text: "Посунути ліворуч", act: "left" });
-                            if (app.pinPos >= 0 && app.pinPos < DockStore.pinned.length - 1) list.push({ kind: "item", glyph: "", text: "Посунути праворуч", act: "right" });
-                            list.push({ kind: "item", glyph: "", text: "Відкріпити від дока", act: "unpin" });
+                            if (app.pinPos > 0) list.push({ kind: "item", glyph: "", text: Tr.t("dock.left"), act: "left" });
+                            if (app.pinPos >= 0 && app.pinPos < DockStore.pinned.length - 1) list.push({ kind: "item", glyph: "", text: Tr.t("dock.right"), act: "right" });
+                            list.push({ kind: "item", glyph: "", text: Tr.t("dock.unpin"), act: "unpin" });
                         } else {
-                            list.push({ kind: "item", glyph: "", text: "Закріпити в доці", act: "pin", accent: true });
+                            list.push({ kind: "item", glyph: "", text: Tr.t("dock.pin"), act: "pin", accent: true });
                         }
                         if (app.wins.length > 0)
-                            list.push({ kind: "item", glyph: "", text: app.wins.length === 1 ? "Закрити вікно" : "Закрити " + Plural.windows(app.wins.length), act: "close", danger: true });
+                            list.push({ kind: "item", glyph: "", text: app.wins.length === 1 ? Tr.t("dock.closeOne") : Tr.t("dock.closeMany", Plural.windows(app.wins.length)), act: "close", danger: true });
                         return list;
                     }
 

@@ -41,7 +41,10 @@ PanelWindow {
             // activelayout>>назва_клавіатури,Назва розкладки
             if (event.name === "activelayout") {
                 const name = event.data.split(",").pop();
-                bar.kbLayout = name.indexOf("Ukrainian") !== -1 ? "UK" : "EN";
+                const known = { "English": "EN", "Ukrainian": "UK", "Russian": "RU", "Polish": "PL", "German": "DE", "French": "FR", "Spanish": "ES", "Czech": "CZ" };
+                let code = name.slice(0, 2).toUpperCase();
+                for (const k in known) if (name.indexOf(k) !== -1) { code = known[k]; break; }
+                bar.kbLayout = code;
             }
         }
     }
@@ -182,7 +185,7 @@ PanelWindow {
 
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: Qt.formatDateTime(clock.date, "HH:mm")
+            text: Qt.formatDateTime(clock.date, Settings.clock24 ? "HH:mm" : "h:mm AP")
             color: Theme.text
             font.family: Theme.font
             font.pixelSize: 14
@@ -191,7 +194,7 @@ PanelWindow {
 
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: clock.date.toLocaleDateString(Qt.locale("uk_UA"), "ddd, d MMMM")
+            text: clock.date.toLocaleDateString(Tr.locale, "ddd, d MMMM")
             color: Theme.textMuted
             font.family: Theme.font
             font.pixelSize: 13

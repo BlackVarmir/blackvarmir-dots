@@ -59,6 +59,8 @@ brightnessctl
 playerctl
 nautilus
 pavucontrol
+zenity
+pacman-contrib
 
 # --- Шрифти та іконки ---
 otf-geist-mono-nerd

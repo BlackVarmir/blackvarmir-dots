@@ -55,8 +55,8 @@ PanelWindow {
     readonly property var audio: Pipewire.defaultAudioSink?.audio ?? null
 
     function profileName(p) {
-        return p === PowerProfile.PowerSaver ? "Енергозбереження"
-            : p === PowerProfile.Performance ? "Продуктивність" : "Збалансований";
+        return p === PowerProfile.PowerSaver ? Tr.t("power.saver")
+            : p === PowerProfile.Performance ? Tr.t("power.performance") : Tr.t("power.balanced");
     }
 
     onVisibleChanged: {
@@ -148,7 +148,7 @@ PanelWindow {
                         font.weight: Font.DemiBold
                     }
                     Text {
-                        text: "працює " + Sys.uptimeText
+                        text: Tr.t("cc.uptime", Sys.uptimeText)
                         color: Theme.textSubtle
                         font.family: Theme.mono
                         font.pixelSize: 12
@@ -157,7 +157,7 @@ PanelWindow {
 
                 IconButton {
                     glyph: ""
-                    tip: "Знімок області"
+                    tip: Tr.t("cc.screenshot")
                     onClicked: {
                         Panels.closeAll();
                         Quickshell.execDetached(["sh", "-c",
@@ -165,13 +165,18 @@ PanelWindow {
                     }
                 }
                 IconButton {
+                    glyph: "\uf013"
+                    tip: Tr.t("cc.settings")
+                    onClicked: Panels.openSettings("")
+                }
+                IconButton {
                     glyph: ""
-                    tip: "Заблокувати"
+                    tip: Tr.t("power.lock")
                     onClicked: { Panels.closeAll(); Quickshell.execDetached(["loginctl", "lock-session"]); }
                 }
                 IconButton {
                     glyph: ""
-                    tip: "Живлення"
+                    tip: Tr.t("power.title")
                     onClicked: cc.page = "power"
                 }
             }
@@ -187,7 +192,7 @@ PanelWindow {
                     Layout.fillWidth: true
                     glyph: ""
                     title: "Wi-Fi"
-                    subtitle: !Networking.wifiEnabled ? "Вимкнено" : (cc.wifiNetwork?.name ?? "Не підключено")
+                    subtitle: !Networking.wifiEnabled ? Tr.t("common.off") : (cc.wifiNetwork?.name ?? Tr.t("wifi.notConnected"))
                     active: Networking.wifiEnabled
                     hasMenu: true
                     onClicked: Networking.wifiEnabled = !Networking.wifiEnabled
@@ -197,8 +202,8 @@ PanelWindow {
                     Layout.fillWidth: true
                     glyph: ""
                     title: "Bluetooth"
-                    subtitle: !(cc.btAdapter?.enabled ?? false) ? "Вимкнено"
-                        : cc.btConnected.length > 0 ? cc.btConnected.map(d => d.name).join(", ") : "Немає пристроїв"
+                    subtitle: !(cc.btAdapter?.enabled ?? false) ? Tr.t("common.off")
+                        : cc.btConnected.length > 0 ? cc.btConnected.map(d => d.name).join(", ") : Tr.t("bt.noDevices")
                     active: cc.btAdapter?.enabled ?? false
                     hasMenu: true
                     onClicked: if (cc.btAdapter) cc.btAdapter.enabled = !cc.btAdapter.enabled
@@ -207,16 +212,16 @@ PanelWindow {
                 QuickTile {
                     Layout.fillWidth: true
                     glyph: NotifStore.dnd ? "" : ""
-                    title: "Не турбувати"
-                    subtitle: NotifStore.dnd ? "Увімкнено" : "Вимкнено"
+                    title: Tr.t("cc.dnd")
+                    subtitle: NotifStore.dnd ? Tr.t("common.on") : Tr.t("common.off")
                     active: NotifStore.dnd
                     onClicked: NotifStore.dnd = !NotifStore.dnd
                 }
                 QuickTile {
                     Layout.fillWidth: true
                     glyph: ""
-                    title: "Нічне світло"
-                    subtitle: Sys.nightLight ? "4000 K" : "Вимкнено"
+                    title: Tr.t("cc.nightLight")
+                    subtitle: Sys.nightLight ? "4000 K" : Tr.t("common.off")
                     active: Sys.nightLight
                     onClicked: Sys.nightLight = !Sys.nightLight
                 }
@@ -224,7 +229,7 @@ PanelWindow {
                     Layout.fillWidth: true
                     glyph: ""
                     title: "VPN"
-                    subtitle: Sys.vpnName === "" ? "Не налаштовано" : Sys.vpnName
+                    subtitle: Sys.vpnName === "" ? Tr.t("cc.vpnNone") : Sys.vpnName
                     active: Sys.vpnActive
                     onClicked: Sys.toggleVpn()
                 }
@@ -232,7 +237,7 @@ PanelWindow {
                     Layout.fillWidth: true
                     glyph: PowerProfiles.profile === PowerProfile.PowerSaver ? ""
                         : PowerProfiles.profile === PowerProfile.Performance ? "" : ""
-                    title: "Живлення"
+                    title: Tr.t("power.title")
                     subtitle: cc.profileName(PowerProfiles.profile)
                     active: PowerProfiles.profile !== PowerProfile.Balanced
                     hasMenu: true
@@ -362,7 +367,7 @@ PanelWindow {
                         Text {
                             Layout.fillWidth: true
                             elide: Text.ElideRight
-                            text: cc.player?.trackTitle || "Без назви"
+                            text: cc.player?.trackTitle || Tr.t("cc.untitled")
                             color: Theme.text
                             font.family: Theme.font
                             font.pixelSize: 14
@@ -378,14 +383,14 @@ PanelWindow {
                         }
                     }
 
-                    IconButton { glyph: ""; tip: "Попередній"; onClicked: cc.player?.previous() }
+                    IconButton { glyph: ""; tip: Tr.t("cc.prev"); onClicked: cc.player?.previous() }
                     IconButton {
                         glyph: (cc.player?.isPlaying ?? false) ? "" : ""
-                        tip: "Пауза"
+                        tip: Tr.t("cc.pause")
                         accent: true
                         onClicked: cc.player?.togglePlaying()
                     }
-                    IconButton { glyph: ""; tip: "Наступний"; onClicked: cc.player?.next() }
+                    IconButton { glyph: ""; tip: Tr.t("cc.next"); onClicked: cc.player?.next() }
                 }
             }
 
@@ -394,7 +399,7 @@ PanelWindow {
                 Layout.fillWidth: true
                 Text {
                     Layout.fillWidth: true
-                    text: "СПОВІЩЕННЯ · " + NotifStore.count
+                    text: Tr.t("cc.notifications", NotifStore.count)
                     color: Theme.emerald
                     font.family: Theme.mono
                     font.pixelSize: 11
@@ -402,7 +407,7 @@ PanelWindow {
                 }
                 Text {
                     visible: NotifStore.count > 0
-                    text: "Очистити все"
+                    text: Tr.t("cc.clearAll")
                     color: clearArea.containsMouse ? Theme.text : Theme.textMuted
                     font.family: Theme.font
                     font.pixelSize: 13
@@ -455,7 +460,7 @@ PanelWindow {
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "Нових сповіщень немає"
+                        text: Tr.t("cc.noNotifications")
                         color: Theme.text
                         font.family: Theme.font
                         font.pixelSize: 15
@@ -466,7 +471,7 @@ PanelWindow {
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
                         visible: NotifStore.dnd
-                        text: "Поки увімкнено «Не турбувати», картки не спливають. Усе пропущене з'являється тут."
+                        text: Tr.t("cc.dndHint")
                         color: Theme.textMuted
                         font.family: Theme.font
                         font.pixelSize: 12

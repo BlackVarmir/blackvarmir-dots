@@ -17,4 +17,5 @@ ShellRoot {
     Overview {}
     ControlCenter {}
     Notifications {}
+    SettingsWindow {}
 }

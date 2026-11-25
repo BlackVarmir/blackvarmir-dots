@@ -23,7 +23,7 @@ Item {
     readonly property bool hovered: cardArea.containsMouse
     readonly property bool isDropTarget: drop.containsDrag
 
-    readonly property var names: ["Термінал", "Код", "Браузер", "Чат", "Музика", "Інше"]
+    readonly property var names: [Tr.t("ws.1"), Tr.t("ws.2"), Tr.t("ws.3"), Tr.t("ws.4"), Tr.t("ws.5"), Tr.t("ws.6")]
 
     height: label.height + 10 + overview.cardH
 
@@ -38,14 +38,14 @@ Item {
             font.pixelSize: 15
         }
         Text {
-            text: card.isDropTarget ? card.names[card.wsId - 1] + " · сюди" : card.names[card.wsId - 1]
+            text: card.isDropTarget ? Tr.t("overview.dropTarget", card.names[card.wsId - 1]) : card.names[card.wsId - 1]
             color: card.isDropTarget ? Theme.emeraldLight : Theme.text
             font.family: Theme.font
             font.pixelSize: 15
             font.weight: Font.DemiBold
         }
         Text {
-            text: card.windows.length === 0 ? "порожній" : Plural.windows(card.windows.length)
+            text: card.windows.length === 0 ? Tr.t("overview.empty") : Plural.windows(card.windows.length)
             color: Theme.textSubtle
             font.family: Theme.font
             font.pixelSize: 13
@@ -149,7 +149,7 @@ Item {
         Text {
             anchors.centerIn: parent
             visible: card.windows.length === 0
-            text: card.isDropTarget ? "Відпустіть, щоб перенести" : "+"
+            text: card.isDropTarget ? Tr.t("overview.dropHere") : "+"
             color: Theme.textSubtle
             font.family: Theme.font
             font.pixelSize: card.isDropTarget ? 14 : 26

@@ -10,23 +10,23 @@ import Quickshell.Io
 Singleton {
     id: store
 
-    readonly property var pinned: adapter.pinned
+    readonly property var pinned: Array.from(adapter.pinned)
 
     function isPinned(id) {
-        return adapter.pinned.indexOf(id) !== -1;
+        return pinned.indexOf(id) !== -1;
     }
 
     function pin(id) {
-        if (!isPinned(id)) adapter.pinned = adapter.pinned.concat([id]);
+        if (!isPinned(id)) adapter.pinned = pinned.concat([id]);
     }
 
     function unpin(id) {
-        adapter.pinned = adapter.pinned.filter(x => x !== id);
+        adapter.pinned = pinned.filter(x => x !== id);
     }
 
     // step: -1 — ліворуч, +1 — праворуч
     function move(id, step) {
-        const list = adapter.pinned.slice();
+        const list = pinned.slice();
         const i = list.indexOf(id);
         const j = i + step;
         if (i < 0 || j < 0 || j >= list.length) return;

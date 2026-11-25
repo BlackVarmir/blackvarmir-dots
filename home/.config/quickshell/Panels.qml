@@ -9,12 +9,22 @@ import Quickshell.Io
 //   qs ipc call spotlight toggle   — Super + Space
 //   qs ipc call overview toggle    — Super + Tab
 //   qs ipc call control toggle     — Super + N
+//   qs ipc call settings toggle    — Super + ,   (qs ipc call settings show display — одразу розділ)
 Singleton {
     id: panels
 
     property bool spotlightOpen: false
     property bool overviewOpen: false
     property bool controlOpen: false
+    // Вікно налаштувань — звичайне вікно, тож оверлеї при його відкритті просто ховаються
+    property bool settingsOpen: false
+    property string settingsSection: "lang"
+
+    function openSettings(section) {
+        closeAll();
+        if (section) settingsSection = section;
+        settingsOpen = true;
+    }
 
     function closeAll() {
         spotlightOpen = false;
@@ -38,6 +48,13 @@ Singleton {
         function toggle(): void { panels.toggleOverview(); }
         function open(): void { panels.closeAll(); panels.overviewOpen = true; }
         function close(): void { panels.overviewOpen = false; }
+    }
+
+    IpcHandler {
+        target: "settings"
+        function toggle(): void { if (panels.settingsOpen) panels.settingsOpen = false; else panels.openSettings(""); }
+        function show(section: string): void { panels.openSettings(section); }
+        function close(): void { panels.settingsOpen = false; }
     }
 
     IpcHandler {

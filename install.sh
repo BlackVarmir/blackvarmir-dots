@@ -178,6 +178,11 @@ Current=blackvarmir
 EOF
 info "Перевірити без виходу: sddm-greeter-qt6 --test-mode --theme $THEME_DIR"
 
+step "Помічник застосунку «Налаштування»"
+sudo install -Dm755 "$REPO_DIR/system/bin/blackvarmir-settings-helper" /usr/local/bin/blackvarmir-settings-helper
+sudo install -d /usr/share/sddm/faces
+info "Зміна мови, часового поясу, кришки і аватара просить пароль через pkexec"
+
 # ── 6. Конфіги користувача (симлінки, старі — у резервну копію) ──
 step "Конфіги"
 mkdir -p "$HOME/.config"

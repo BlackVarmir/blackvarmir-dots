@@ -24,7 +24,7 @@ Item {
 
     function windowLabel(t) {
         const cls = t.lastIpcObject?.class ?? "";
-        return t.title || cls || "Вікно";
+        return t.title || cls || Tr.t("overview.window");
     }
     function matches(t) {
         if (query.length === 0) return true;
@@ -136,7 +136,7 @@ Item {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: search.text.length === 0
-                text: "Пошук вікон і робочих столів"
+                text: Tr.t("overview.search")
                 color: Theme.textSubtle
                 font: search.font
             }
@@ -203,7 +203,7 @@ Item {
         spacing: 22
 
         Repeater {
-            model: [["← → ↑ ↓", "стіл"], ["Tab", "вікно"], ["⏎", "перейти"], ["1…6", "одразу"], ["Del", "закрити вікно"], ["Esc", "закрити"]]
+            model: [["← → ↑ ↓", Tr.t("overview.kDesk")], ["Tab", Tr.t("overview.kWindow")], ["⏎", Tr.t("overview.kGo")], ["1…6", Tr.t("overview.kJump")], ["Del", Tr.t("overview.kClose")], ["Esc", Tr.t("overview.kExit")]]
             Row {
                 required property var modelData
                 spacing: 7

@@ -39,7 +39,7 @@ ColumnLayout {
     }
 
     Eyebrow {
-        text: page.device ? "МЕРЕЖІ · " + page.networks.length : "WI-FI АДАПТЕР НЕ ЗНАЙДЕНО"
+        text: page.device ? Tr.t("wifi.networks", page.networks.length) : Tr.t("wifi.noAdapter")
     }
 
     ListView {
@@ -87,7 +87,7 @@ ColumnLayout {
                 function onConnectionFailed(reason) {
                     page.expanded = row.net.name;
                     page.error = reason === ConnectionFailReason.NoSecrets || reason === ConnectionFailReason.WifiAuthTimeout
-                        ? "Невірний пароль" : "Не вдалося підключитися";
+                        ? Tr.t("wifi.wrongPassword") : Tr.t("wifi.failed");
                 }
             }
 
@@ -120,10 +120,10 @@ ColumnLayout {
                             font.weight: row.net.connected ? Font.DemiBold : Font.Normal
                         }
                         Text {
-                            text: row.net.stateChanging ? "Підключення…"
-                                : row.net.connected ? "Підключено"
-                                : row.open ? "Відкрита мережа"
-                                : row.net.known ? "Збережена" : "Захищена"
+                            text: row.net.stateChanging ? Tr.t("wifi.connecting")
+                                : row.net.connected ? Tr.t("wifi.connected")
+                                : row.open ? Tr.t("wifi.open")
+                                : row.net.known ? Tr.t("wifi.saved") : Tr.t("wifi.secured")
                             color: Theme.textMuted
                             font.family: Theme.font
                             font.pixelSize: 12
@@ -175,7 +175,7 @@ ColumnLayout {
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: psk.text.length === 0
-                                text: "Пароль мережі"
+                                text: Tr.t("wifi.password")
                                 color: Theme.textSubtle
                                 font: psk.font
                             }
@@ -191,9 +191,9 @@ ColumnLayout {
                     RowLayout {
                         Layout.alignment: Qt.AlignRight
                         spacing: 8
-                        VButton { text: "Скасувати"; variant: "ghost"; onClicked: page.expanded = "" }
+                        VButton { text: Tr.t("common.cancel"); variant: "ghost"; onClicked: page.expanded = "" }
                         VButton {
-                            text: "Підключитися"
+                            text: Tr.t("wifi.connect")
                             opacity: psk.text.length >= 8 ? 1 : 0.5
                             onClicked: if (psk.text.length >= 8) row.net.connectWithPsk(psk.text)
                         }
@@ -205,8 +205,8 @@ ColumnLayout {
                     visible: row.isExpanded && row.net.connected
                     Layout.alignment: Qt.AlignRight
                     spacing: 8
-                    VButton { text: "Забути"; variant: "ghost"; onClicked: { row.net.forget(); page.expanded = ""; } }
-                    VButton { text: "Відключитися"; variant: "secondary"; onClicked: { row.net.disconnect(); page.expanded = ""; } }
+                    VButton { text: Tr.t("wifi.forget"); variant: "ghost"; onClicked: { row.net.forget(); page.expanded = ""; } }
+                    VButton { text: Tr.t("wifi.disconnect"); variant: "secondary"; onClicked: { row.net.disconnect(); page.expanded = ""; } }
                 }
             }
         }
@@ -215,7 +215,7 @@ ColumnLayout {
     Text {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
-        text: "Мережі оновлюються, поки це підменю відкрите."
+        text: Tr.t("wifi.hint")
         color: Theme.textSubtle
         font.family: Theme.font
         font.pixelSize: 12
