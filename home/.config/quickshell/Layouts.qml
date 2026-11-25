@@ -20,7 +20,24 @@ Singleton {
 
     // Поточна розкладка (код xkb). Оновлюється з подій Hyprland.
     property string current: Settings.data.kbLayouts[0] ?? "us"
+    property string previous: current
+    property real switchedAt: 0
+    property real quietUntil: 0
     signal switched()
+    signal reverted()
+
+    // Alt + Shift + Tab: Shift, натиснутий при затиснутому Alt, уже перемкнув мову,
+    // перш ніж Hyprland побачив Tab. Перемикач вікон кличе це, щоб повернути мову назад.
+    function undoRecentSwitch() {
+        if (Date.now() - switchedAt > 1500) return;
+        if (Settings.data.kbToggle !== "alt_shift") return;
+        const idx = Array.from(Settings.data.kbLayouts).indexOf(previous);
+        if (idx < 0) return;
+        quietUntil = Date.now() + 600;
+        switchedAt = 0;
+        reverted();
+        Quickshell.execDetached(["hyprctl", "switchxkblayout", "all", String(idx)]);
+    }
 
     function find(code) {
         return catalog.find(c => c.value === code) ?? { value: code, label: code, short: code.toUpperCase(), xkb: code };
@@ -41,7 +58,10 @@ Singleton {
             if (event.name !== "activelayout") return;
             const code = fromXkb(event.data.split(",").pop());
             if (code === current) return;
+            previous = current;
             current = code;
+            if (Date.now() < quietUntil) return;
+            switchedAt = Date.now();
             switched();
         }
     }

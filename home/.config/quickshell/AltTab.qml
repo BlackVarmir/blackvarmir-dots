@@ -62,6 +62,7 @@ Scope {
 
     function start(dir, app) {
         if (active) { step(dir); return; }
+        if (dir < 0) Layouts.undoRecentSwitch();
         Panels.closeAll();
         list = build(app);
         appOnly = app;

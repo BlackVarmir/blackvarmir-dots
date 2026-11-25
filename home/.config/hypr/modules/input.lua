@@ -3,9 +3,10 @@
 
 hl.config({
     input = {
-        -- Англійська + українська, перемикання Alt + Shift
+        -- Англійська + українська. Перемикання Alt + Shift — прив'язкою в binds.lua,
+        -- а не опцією xkb: так під час Alt + Tab мова не перемикається.
         kb_layout  = "us,ua",
-        kb_options = "grp:alt_shift_toggle",
+        kb_options = "",
 
         -- Швидший повтор клавіш, як у macOS
         repeat_delay = 300,
