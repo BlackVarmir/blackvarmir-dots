@@ -68,6 +68,7 @@ PanelWindow {
             page = "main";
             NotifStore.hiddenCount = 0;
             Sys.refresh();
+            Vpn.refresh();
             focusCatcher.forceActiveFocus();
         }
     }
@@ -229,9 +230,14 @@ PanelWindow {
                     Layout.fillWidth: true
                     glyph: ""
                     title: "VPN"
-                    subtitle: Sys.vpnName === "" ? Tr.t("cc.vpnNone") : Sys.vpnName
-                    active: Sys.vpnActive
-                    onClicked: Sys.toggleVpn()
+                    subtitle: Vpn.activeCount > 1 ? Tr.t("vpn.activeCount", Vpn.activeCount)
+                        : Vpn.activeCount === 1 ? Vpn.activeList[0].name
+                        : Vpn.tunnels.length === 0 ? Tr.t("cc.vpnNone") : Tr.t("common.off")
+                    active: Vpn.activeCount > 0
+                    hasMenu: true
+                    // Один тунель — перемикається прямо з плитки, інакше відкривається список
+                    onClicked: { if (!Vpn.toggleSingle()) cc.page = "vpn"; }
+                    onMenuRequested: cc.page = "vpn"
                 }
                 QuickTile {
                     Layout.fillWidth: true
@@ -496,6 +502,14 @@ PanelWindow {
             active: cc.page === "bluetooth"
             sourceComponent: CcBluetooth {
                 adapter: cc.btAdapter
+                onBack: cc.page = "main"
+            }
+        }
+        Loader {
+            anchors.fill: parent
+            anchors.margins: 18
+            active: cc.page === "vpn"
+            sourceComponent: CcVpn {
                 onBack: cc.page = "main"
             }
         }
