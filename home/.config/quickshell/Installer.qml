@@ -25,7 +25,10 @@ PanelWindow {
 
     property bool shown: Quickshell.env("BV_INSTALLER") === "1"
     readonly property bool dryRun: Quickshell.env("BV_DRYRUN") === "1"
-    readonly property string repo: Quickshell.env("BV_REPO") || "/opt/blackvarmir-dots"
+    // Де лежить бекенд: BV_REPO, на ISO /opt/blackvarmir-dots, у розробці ~/blackvarmir-dots
+    readonly property string runBackend: 'for d in "$BV_REPO" /opt/blackvarmir-dots "$HOME/blackvarmir-dots"; do '
+        + '[ -f "$d/installer/backend.py" ] && exec python3 "$d/installer/backend.py" "$@"; done; '
+        + 'echo "backend.py not found" >&2; exit 3'
     readonly property string home: Quickshell.env("HOME") || ""
 
     // Кроки: 0 мова, 1 розкладка, 2 Wi-Fi, 3 диск, 4 скільки віддати (лише поруч із Windows),
@@ -89,7 +92,7 @@ PanelWindow {
     // ───────────── Бекенд ─────────────
     Process {
         id: disksProc
-        command: ["python3", win.repo + "/installer/backend.py", "disks"]
+        command: ["bash", "-c", win.runBackend, "_", "disks"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try { win.disks = JSON.parse(text).disks; } catch (e) { win.disks = []; }
@@ -106,7 +109,7 @@ PanelWindow {
     Process {
         id: planProc
         property string payload: ""
-        command: ["bash", "-c", "printf '%s' \"$1\" | python3 \"$2\" plan", "_", payload, win.repo + "/installer/backend.py"]
+        command: ["bash", "-c", "printf '%s' \"$1\" | { shift; " + win.runBackend + "; }", "_", payload, "plan"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {

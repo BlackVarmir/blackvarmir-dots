@@ -52,6 +52,10 @@ class Disks(unittest.TestCase):
         load([dev])
         self.assertTrue(backend.cmd_disks()["disks"][0]["busy"])
 
+    def test_skips_zram_and_empty(self):
+        load([disk("/dev/zram0", 8 * GIB, []), disk("/dev/sdz", 0, []), disk("/dev/vda", 64 * GIB, [])])
+        self.assertEqual([d["path"] for d in backend.cmd_disks()["disks"]], ["/dev/vda"])
+
     def test_nvme_names(self):
         d = {"path": "/dev/nvme0n1"}
         self.assertEqual(backend.part_path(d, 2), "/dev/nvme0n1p2")

@@ -127,6 +127,9 @@ def parse_disks(data):
     for dev in data.get("blockdevices", []):
         if dev.get("type") != "disk":
             continue
+        # Не диски для встановлення: zram, loop, оптичні, порожні пристрої
+        if to_int(dev.get("size")) < GIB or dev["name"].startswith(("/dev/zram", "/dev/loop", "/dev/sr")):
+            continue
         sector = to_int(dev.get("log-sec"), 512) or 512
         size = to_int(dev.get("size"))
         parts = []
