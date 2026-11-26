@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Перший запуск встановленої системи: налаштовує snapper (там, де це не можна зробити з
+# chroot, бо потрібен D-Bus) і створює знімок «Чиста установка», до якого завжди можна
+# повернутися. Запускає blackvarmir-firstboot.service один раз.
+set -euo pipefail
+
+USER_NAME="$(getent passwd 1000 | cut -d: -f1 || true)"
+
+if [[ "$(findmnt -no FSTYPE /)" == "btrfs" ]]; then
+    if ! snapper -c root get-config >/dev/null 2>&1; then
+        # Розкладка установника вже має підтом @snapshots у /.snapshots: snapper хоче створити
+        # свій, тому тимчасово прибираємо точку монтування і повертаємо наш підтом
+        if mountpoint -q /.snapshots; then
+            umount /.snapshots
+            rmdir /.snapshots
+            snapper -c root create-config /
+            btrfs subvolume delete /.snapshots >/dev/null
+            mkdir /.snapshots
+            mount -a
+        else
+            snapper -c root create-config /
+        fi
+    fi
+    snapper -c root set-config "ALLOW_USERS=${USER_NAME}" SYNC_ACL=yes TIMELINE_CREATE=no \
+        NUMBER_LIMIT=10 NUMBER_LIMIT_IMPORTANT=10
+    chmod 750 /.snapshots
+    btrfs qgroup show / >/dev/null 2>&1 || btrfs quota enable /
+    snapper -c root setup-quota >/dev/null 2>&1 || true
+    snapper -c root create --type single --cleanup-algorithm number --print-number \
+        --description "Чиста установка" --userdata "important=yes"
+fi
+
+updatedb || true
+systemctl disable blackvarmir-firstboot.service

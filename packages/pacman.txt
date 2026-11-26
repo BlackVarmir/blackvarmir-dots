@@ -84,3 +84,4 @@ inotify-tools
 linux-lts
 linux-lts-headers
 libnotify
+dconf

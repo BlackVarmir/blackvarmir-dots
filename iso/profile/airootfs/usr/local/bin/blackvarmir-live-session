@@ -20,13 +20,13 @@ cat > "$HOME/.config/blackvarmir/settings.json" <<'JSON'
 { "lockAfter": 0, "sleepAfter": 0, "dimAfter": 0 }
 JSON
 
-# У режимі встановлення разом із сеансом стартує установник
+# У режимі встановлення оболонка відкриває установник
 rm -f "$HOME/.config/blackvarmir/hyprland-user.lua"
+# (Quickshell стартує з autostart.lua і бачить BV_INSTALLER: установник відкривається сам.
+# Закрити або знову відкрити: qs ipc call installer close / open.)
 if [[ "$MODE" == install ]]; then
     cat > "$HOME/.config/blackvarmir/hyprland-user.lua" <<'LUA'
-hl.on("hyprland.start", function()
-    hl.exec_cmd("blackvarmir-installer")
-end)
+hl.env("BV_INSTALLER", "1")
 LUA
 fi
 

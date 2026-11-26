@@ -142,5 +142,55 @@ class Plans(unittest.TestCase):
         self.assertNotIn("/dev/sda3", [a for c in cmds for a in c])
 
 
+class Run(unittest.TestCase):
+    CH = {"mode": "erase", "disk": "/dev/vda", "dryRun": True, "lang": "uk", "layouts": ["us", "ua"],
+          "wallpaper": "/home/live/.local/share/blackvarmir/wallpapers/varmir-aura.png",
+          "user": {"name": "test", "fullName": "Test User", "hostname": "bvarch", "password": "s3cret-pw"}}
+
+    def run_dry(self, ch):
+        import io, contextlib
+        load([disk("/dev/vda", 64 * GIB, [])])
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = backend.cmd_run(ch)
+        return rc, [json.loads(line) for line in buf.getvalue().splitlines()]
+
+    def test_dry_run_completes_without_touching_disk(self):
+        backend.time.sleep = lambda *_: None
+        rc, ev = self.run_dry(self.CH)
+        self.assertEqual(rc, 0)
+        self.assertEqual(ev[-1]["type"], "done")
+        steps = next(e for e in ev if e["type"] == "steps")
+        self.assertTrue(steps["dryRun"])
+        self.assertIn("Install the GRUB bootloader", steps["titles"])
+        self.assertEqual(sum(1 for e in ev if e["type"] == "step" and e["state"] == "ok"), len(steps["titles"]))
+
+    def test_password_never_logged(self):
+        backend.time.sleep = lambda *_: None
+        _, ev = self.run_dry(self.CH)
+        self.assertNotIn("s3cret-pw", json.dumps(ev))
+
+    def test_bad_user_name_rejected(self):
+        ch = json.loads(json.dumps(self.CH))
+        ch["user"]["name"] = "Bad Name"
+        rc, ev = self.run_dry(ch)
+        self.assertEqual(rc, 1)
+        self.assertEqual(ev[-1]["type"], "error")
+
+    def test_real_run_needs_root_and_confirm(self):
+        ch = dict(self.CH, dryRun=False)
+        if os.geteuid() == 0:
+            self.skipTest("running as root")
+        rc, ev = self.run_dry(ch)
+        self.assertEqual(rc, 1)
+        self.assertEqual(ev[-1]["type"], "error")
+
+    def test_settings_json_for_new_user(self):
+        d = json.loads(backend.settings_json(self.CH, "test"))
+        self.assertEqual(d["shellLang"], "uk")
+        self.assertEqual(d["kbLayouts"], ["us", "ua"])
+        self.assertEqual(d["wallpaper"], "/home/test/.local/share/blackvarmir/wallpapers/varmir-aura.png")
+
+
 if __name__ == "__main__":
     unittest.main()

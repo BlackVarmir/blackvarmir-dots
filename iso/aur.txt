@@ -1,3 +1,4 @@
 # Пакети з AUR для живого образу (збираються в локальний репозиторій під час iso/build.sh)
 ttf-geist
 bibata-cursor-theme-bin
+paru-bin

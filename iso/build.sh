@@ -59,6 +59,10 @@ mkdir -p "$dest"
 git -C "$REPO_DIR" ls-files -z --cached --others --exclude-standard \
     | grep -zv '^iso/' | rsync -a --from0 --files-from=- "$REPO_DIR/" "$dest/"
 
+# Локальний репозиторій (AUR-пакети) теж іде в образ: з нього установник ставить Geist, курсор і paru
+mkdir -p "$PROFILE/airootfs/opt/blackvarmir-localrepo"
+cp -a "$LOCAL"/. "$PROFILE/airootfs/opt/blackvarmir-localrepo/"
+
 # Тема GRUB і шрифт Geist (якщо немає, меню покаже стандартний шрифт)
 theme="$PROFILE/grub/themes/blackvarmir"
 mkdir -p "$theme"

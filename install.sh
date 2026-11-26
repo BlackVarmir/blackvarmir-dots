@@ -33,6 +33,14 @@ die()  { printf '%s✗ %s%s\n' "$red" "$*" "$reset" >&2; exit 1; }
 
 read_list() { grep -vE '^\s*(#|$)' "$1" | awk '{print $1}'; }
 
+# BV_CHROOT=1: запуск установником усередині arch-chroot. Там немає працюючої systemd, D-Bus і
+# udev: усе, що вимагає живої системи, пропускається, а конфігурацію snapper і знімок
+# «clean install» створить перший запуск (blackvarmir-firstboot). Звичайне встановлення
+# на працюючу систему цим не змінюється.
+live() { [[ -z "${BV_CHROOT:-}" ]]; }
+# systemctl enable, а в живій системі ще й запуск
+svc_enable() { if live; then sudo systemctl enable --now "$@" >/dev/null; else sudo systemctl enable "$@" >/dev/null; fi; }
+
 # ── Перевірки ─────────────────────────────────────────────────────
 [[ -f /etc/arch-release ]] || die "Скрипт розрахований на Arch Linux."
 [[ $EUID -ne 0 ]]          || die "Запускай від звичайного користувача, не від root (sudo скрипт попросить сам)."
@@ -128,8 +136,10 @@ if [[ -n "$IGPU_ADDR" ]]; then
             echo "KERNEL==\"card*\", KERNELS==\"$DGPU_ADDR\", SUBSYSTEM==\"drm\", SUBSYSTEMS==\"pci\", SYMLINK+=\"dri/dgpu\""
         fi
     } | sudo tee "$RULE" >/dev/null
-    sudo udevadm control --reload
-    sudo udevadm trigger --subsystem-match=drm
+    if live; then
+        sudo udevadm control --reload
+        sudo udevadm trigger --subsystem-match=drm
+    fi
     info "Правило udev: $RULE"
 fi
 
@@ -137,7 +147,7 @@ fi
 step "Пам'ять: zram і sysctl"
 sudo install -Dm644 "$REPO_DIR/system/etc/systemd/zram-generator.conf" /etc/systemd/zram-generator.conf
 sudo install -Dm644 "$REPO_DIR/system/etc/sysctl.d/99-blackvarmir.conf" /etc/sysctl.d/99-blackvarmir.conf
-sudo sysctl --system >/dev/null
+if live; then sudo sysctl --system >/dev/null; fi
 
 step "Індекс файлів для Spotlight (plocate)"
 # На btrfs підтоми (зокрема @home) виглядають для updatedb як bind-монтування
@@ -153,8 +163,12 @@ OnCalendar=
 OnCalendar=hourly
 RandomizedDelaySec=5min
 EOF
-sudo systemctl daemon-reload
-sudo updatedb && info "Індекс побудовано"
+if live; then
+    sudo systemctl daemon-reload
+    sudo updatedb && info "Індекс побудовано"
+else
+    info "Індекс файлів побудує таймер після першого завантаження"
+fi
 
 step "Служби"
 for unit in NetworkManager bluetooth power-profiles-daemon plocate-updatedb.timer; do
@@ -192,7 +206,12 @@ sudo install -Dm755 "$REPO_DIR/system/bin/blackvarmir-grub-titles" /usr/local/bi
 if [[ "$(findmnt -no FSTYPE /)" != "btrfs" ]]; then
     warn "корінь не на btrfs — знімки недоступні, крок пропущено"
 else
-    if ! sudo snapper -c root get-config >/dev/null 2>&1; then
+    if ! live; then
+        sudo install -Dm755 "$REPO_DIR/system/bin/blackvarmir-firstboot" /usr/local/bin/blackvarmir-firstboot
+        sudo install -m644 "$REPO_DIR/system/systemd/blackvarmir-firstboot.service" /etc/systemd/system/
+        sudo systemctl enable blackvarmir-firstboot.service >/dev/null
+        info "snapper: конфігурація і знімок «clean install» при першому завантаженні"
+    elif ! sudo snapper -c root get-config >/dev/null 2>&1; then
         # Розкладка archinstall уже має підтом @.snapshots у /.snapshots: snapper create-config
         # хоче створити свій, тому тимчасово прибираємо точку монтування і повертаємо наш підтом
         if mountpoint -q /.snapshots; then
@@ -207,19 +226,21 @@ else
         fi
         info "створено конфігурацію snapper root"
     fi
-    # Користувач бачить і створює знімки без пароля; щоденні вимкнені, тримаємо 10
-    sudo snapper -c root set-config "ALLOW_USERS=$USER" SYNC_ACL=yes TIMELINE_CREATE=no \
-        NUMBER_LIMIT=10 NUMBER_LIMIT_IMPORTANT=10
-    sudo chmod 750 /.snapshots
-    # Квоти btrfs: «Налаштування → Знімки» показує, скільки займають знімки, а snapper
-    # прибирає старі ще й з огляду на місце
-    if ! sudo btrfs qgroup show / >/dev/null 2>&1; then
-        sudo btrfs quota enable /
+    if live; then
+        # Користувач бачить і створює знімки без пароля; щоденні вимкнені, тримаємо 10
+        sudo snapper -c root set-config "ALLOW_USERS=$USER" SYNC_ACL=yes TIMELINE_CREATE=no \
+            NUMBER_LIMIT=10 NUMBER_LIMIT_IMPORTANT=10
+        sudo chmod 750 /.snapshots
+        # Квоти btrfs: «Налаштування → Знімки» показує, скільки займають знімки, а snapper
+        # прибирає старі ще й з огляду на місце
+        if ! sudo btrfs qgroup show / >/dev/null 2>&1; then
+            sudo btrfs quota enable /
+        fi
+        sudo snapper -c root setup-quota >/dev/null 2>&1 || true
     fi
-    sudo snapper -c root setup-quota >/dev/null 2>&1 || true
     # Опис знімків: що саме оновлюється (кількість, пакети з версіями)
     sudo install -Dm644 -t /etc/pacman.d/hooks "$REPO_DIR"/system/pacman/06-blackvarmir-snapshot-*.hook
-    sudo systemctl enable --now snapper-cleanup.timer >/dev/null
+    svc_enable snapper-cleanup.timer
     sudo install -m644 "$REPO_DIR/system/systemd/blackvarmir-restore-cleanup.service" /etc/systemd/system/
     sudo systemctl enable blackvarmir-restore-cleanup.service >/dev/null
     info "✓ знімок перед кожним оновленням (snap-pac)"
@@ -236,11 +257,11 @@ EOF
             sudo sed -i -E 's/^(HOOKS=\(.*)\)/\1 grub-btrfs-overlayfs)/' /etc/mkinitcpio.conf
             sudo mkinitcpio -P >/dev/null
         fi
-        sudo systemctl enable --now grub-btrfsd.service >/dev/null
+        svc_enable grub-btrfsd.service
         # Назви як у дизайні: «#42 · сьогодні 14:02 · перед оновленням (23)»
         sudo install -m644 "$REPO_DIR"/system/systemd/blackvarmir-grub-titles.{path,service} /etc/systemd/system/
-        sudo systemctl daemon-reload
-        sudo systemctl enable --now blackvarmir-grub-titles.path >/dev/null
+        if live; then sudo systemctl daemon-reload; fi
+        svc_enable blackvarmir-grub-titles.path
 
         # Тема Varmir, шрифт з кирилицею, приховане меню (Shift / Esc або невдале минуле завантаження)
         THEME=/usr/share/grub/themes/blackvarmir
@@ -280,7 +301,7 @@ EOF
         info "завантажувач не GRUB і не Limine — відновлення лише з «Налаштування → Знімки»"
     fi
 fi
-sudo systemctl daemon-reload
+if live; then sudo systemctl daemon-reload; fi
 
 step "Конфіги"
 mkdir -p "$HOME/.config"
@@ -309,14 +330,16 @@ xdg-user-dirs-update
 # Темна тема, іконки, шрифти і курсор для GTK-застосунків. color-scheme через портал
 # бачать і Firefox, і Electron-застосунки.
 if command -v gsettings >/dev/null; then
-    gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
-    gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark'
-    gsettings set org.gnome.desktop.interface icon-theme 'Papirus-Dark'
-    gsettings set org.gnome.desktop.interface font-name 'Geist 11'
-    gsettings set org.gnome.desktop.interface monospace-font-name 'GeistMono Nerd Font 11'
-    gsettings set org.gnome.desktop.interface cursor-theme 'Bibata-Modern-Classic'
-    gsettings set org.gnome.desktop.interface cursor-size 24
-    gsettings set org.gnome.desktop.wm.preferences button-layout ':close'
+    # У chroot немає сеансу D-Bus: gsettings запускаємо в тимчасовому
+    gs() { if live; then gsettings "$@"; else dbus-run-session -- gsettings "$@"; fi; }
+    gs set org.gnome.desktop.interface color-scheme 'prefer-dark'
+    gs set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark'
+    gs set org.gnome.desktop.interface icon-theme 'Papirus-Dark'
+    gs set org.gnome.desktop.interface font-name 'Geist 11'
+    gs set org.gnome.desktop.interface monospace-font-name 'GeistMono Nerd Font 11'
+    gs set org.gnome.desktop.interface cursor-theme 'Bibata-Modern-Classic'
+    gs set org.gnome.desktop.interface cursor-size 24
+    gs set org.gnome.desktop.wm.preferences button-layout ':close'
 fi
 
 # Qt: стиль Fusion з палітрою Varmir. Шлях до палітри має бути повним, тому файл
