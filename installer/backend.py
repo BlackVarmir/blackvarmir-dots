@@ -411,6 +411,39 @@ def emit(**kw):
     print(json.dumps(kw, ensure_ascii=False), flush=True)
 
 
+ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b[()][A-Z0-9]|\x1b[=>]")
+LOG_FILES = ["/var/log/blackvarmir-install.log", "/tmp/blackvarmir-install.log"]
+_logfile = None
+
+
+def log_to_file(line):
+    """Повний журнал установки (на живій системі і потім у новій: /var/log/blackvarmir-install.log)."""
+    global _logfile
+    if _logfile is None:
+        _logfile = False
+        for path in LOG_FILES:
+            try:
+                _logfile = open(path, "a", encoding="utf-8", buffering=1)
+                break
+            except OSError:
+                continue
+    if _logfile:
+        _logfile.write(line + "\n")
+
+
+_last_emit = 0.0
+
+
+def emit_log(line, force=False):
+    """Рядок у журнал; в інтерфейс не частіше 5 разів на секунду (pacman малює прогрес сотнями рядків)."""
+    global _last_emit
+    log_to_file(line)
+    now = time.monotonic()
+    if force or now - _last_emit >= 0.2:
+        _last_emit = now
+        emit(type="log", line=line)
+
+
 class Runner:
     """Виконує команди, передаючи вивід інтерфейсу. У dry-run лише показує, що було б виконано."""
 
@@ -418,16 +451,29 @@ class Runner:
         self.dry = dry
 
     def run(self, cmd, stdin=None, secret=False, check=True):
-        emit(type="log", line="$ " + " ".join(shlex.quote(c) for c in cmd) + (" < (stdin)" if secret else ""))
+        emit_log("$ " + " ".join(shlex.quote(c) for c in cmd) + (" < (stdin)" if secret else ""), force=True)
         if self.dry:
             return 0
         p = subprocess.Popen(cmd, stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
-                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=False)
         if stdin is not None:
-            p.stdin.write(stdin)
+            p.stdin.write(stdin.encode())
             p.stdin.close()
-        for line in p.stdout:
-            emit(type="log", line=line.rstrip("\n"))
+        # pacman і curl малюють прогрес через \r без нового рядка: ділимо і по \r, і по \n
+        fd, buf = p.stdout.fileno(), b""
+        while True:
+            chunk = os.read(fd, 4096)
+            if not chunk:
+                break
+            buf += chunk
+            *parts, buf = re.split(rb"[\r\n]+", buf)
+            for part in parts:
+                text = ANSI_RE.sub("", part.decode("utf-8", "replace")).strip()
+                if text:
+                    emit_log(text)
+        tail = ANSI_RE.sub("", buf.decode("utf-8", "replace")).strip()
+        if tail:
+            emit_log(tail, force=True)
         rc = p.wait()
         if check and rc != 0:
             raise RuntimeError("%s exited with %d" % (cmd[0], rc))
@@ -529,6 +575,10 @@ def extra_steps(r, ch, disk):
 
     def finish():
         r.run(["rm", "-f", MNT + "/root/bv-chroot-setup.sh"])
+        for path in LOG_FILES:
+            if os.path.exists(path) and not r.dry:
+                r.run(["install", "-Dm644", path, MNT + "/var/log/blackvarmir-install.log"])
+                break
         r.run(["sync"])
         r.run(["umount", "-R", MNT])
 
