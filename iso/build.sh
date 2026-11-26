@@ -32,7 +32,9 @@ mkdir -p "$OUT" "$LOCAL"
 
 # ── 1. Пакети AUR → локальний репозиторій ─────────────────────────
 step "AUR-пакети для образу"
-while read -r pkg; do
+# Рядок aur.txt: <пакет> [<pkgbase>]. База потрібна, коли пакет є частиною більшого (ttf-geist ← geist-font)
+while read -r pkg base; do
+    base="${base:-$pkg}"
     [[ -z "$pkg" || "$pkg" == \#* ]] && continue
     if compgen -G "$LOCAL/$pkg-*.pkg.tar.*" >/dev/null; then
         echo "= $pkg"
@@ -45,8 +47,9 @@ while read -r pkg; do
         continue
     fi
     tmp="$(mktemp -d)"
-    git clone --depth 1 "https://aur.archlinux.org/$pkg.git" "$tmp/$pkg"
-    (cd "$tmp/$pkg" && PKGDEST="$LOCAL" makepkg -s --noconfirm --needed)
+    git clone --depth 1 "https://aur.archlinux.org/$base.git" "$tmp/$base"
+    [[ -f "$tmp/$base/PKGBUILD" ]] || die "У AUR немає PKGBUILD для $base (пакет $pkg)"
+    (cd "$tmp/$base" && PKGDEST="$LOCAL" makepkg -s --noconfirm --needed)
     rm -rf "$tmp"
 done < "$ISO_DIR/aur.txt"
 sudo chown -R "$USER:" "$LOCAL"

@@ -1,4 +1,5 @@
-# Пакети з AUR для живого образу (збираються в локальний репозиторій під час iso/build.sh)
-ttf-geist
+# Пакети з AUR для живого образу (збираються в локальний репозиторій під час iso/build.sh).
+# Формат рядка: <пакет> [<pkgbase в AUR>]
+ttf-geist geist-font
 bibata-cursor-theme-bin
 paru-bin
