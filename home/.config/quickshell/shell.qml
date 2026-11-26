@@ -35,6 +35,6 @@ ShellRoot {
     UpdatesPopup {}
     SnapshotBanner {}
 
-    // Етап 8: установник (живий сеанс: BV_INSTALLER=1, або qs ipc call installer show)
+    // Етап 8: установник (живий сеанс: BV_INSTALLER=1, або qs ipc call installer open)
     Installer {}
 }
