@@ -42,6 +42,18 @@ hl.env("LIBVA_DRIVER_NAME", "iHD")
 -- передавати буфери застосунків у Hyprland, і Qt та kitty падають з помилкою
 -- «invalid arguments for wl_surface.attach». Застосунки малюють програмно (llvmpipe),
 -- на справжньому залізі нічого не змінюється.
-if os.execute("systemd-detect-virt --vm --quiet") then
+-- Визначаємо за прапорцем «hypervisor» у /proc/cpuinfo: його виставляє будь-який гіпервізор.
+-- Команди (systemd-detect-virt) тут не годяться: os.execute усередині Hyprland не повертає код.
+local function in_vm()
+    local f = io.open("/proc/cpuinfo", "r")
+    if not f then
+        return false
+    end
+    local info = f:read("*a") or ""
+    f:close()
+    return info:find("flags[^\n]*%shypervisor") ~= nil
+end
+
+if in_vm() then
     hl.env("LIBGL_ALWAYS_SOFTWARE", "1")
 end
