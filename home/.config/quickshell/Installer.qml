@@ -26,8 +26,10 @@ PanelWindow {
     property bool shown: Quickshell.env("BV_INSTALLER") === "1"
     readonly property bool dryRun: Quickshell.env("BV_DRYRUN") === "1"
     // Де лежить бекенд: BV_REPO, на ISO /opt/blackvarmir-dots, у розробці ~/blackvarmir-dots
-    readonly property string runBackend: 'for d in "$BV_REPO" /opt/blackvarmir-dots "$HOME/blackvarmir-dots"; do '
-        + '[ -f "$d/installer/backend.py" ] && exec python3 "$d/installer/backend.py" "$@"; done; '
+    // У живому сеансі (користувач live з sudo без пароля) бекенд працює від root; у розробці без sudo.
+    readonly property string runBackend: 'S=""; sudo -n true 2>/dev/null && S="sudo -n env BV_REPO=$BV_REPO"; '
+        + 'for d in "$BV_REPO" /opt/blackvarmir-dots "$HOME/blackvarmir-dots"; do '
+        + '[ -f "$d/installer/backend.py" ] && exec $S python3 "$d/installer/backend.py" "$@"; done; '
         + 'echo "backend.py not found" >&2; exit 3'
     readonly property string home: Quickshell.env("HOME") || ""
 
@@ -51,7 +53,10 @@ PanelWindow {
     property string pw2: ""
     property var plan: null
     property string planError: ""
-    property int runIndex: -1
+    property int runIndex: 0
+    property var stepTitles: []
+    property string lastLog: ""
+    property string runError: ""
 
     readonly property var disk: disks.find(d => d.path === diskPath) ?? null
     readonly property var windows: disk && disk.windows.length > 0 ? disk.windows[0] : null
@@ -134,17 +139,48 @@ PanelWindow {
         planProc.running = true;
     }
 
-    // Виконання: поки що лише показ кроків плану (пробний запуск). Запис на диск додається окремою зміною.
-    Timer {
-        id: runTimer
-        interval: 700
-        repeat: true
-        onTriggered: {
-            win.runIndex++;
-            if (win.runIndex >= win.plan.steps.length) { stop(); win.step = win.order.indexOf("done"); }
+    // Виконання: бекенд друкує по рядку JSON ({"type": "steps|step|log|error|done"})
+    Process {
+        id: runProc
+        property string payload: ""
+        command: ["bash", "-c", "printf '%s' \"$1\" | { shift; " + win.runBackend + "; }", "_", payload, "run"]
+        stdout: SplitParser {
+            onRead: line => win.onRunEvent(line)
+        }
+        onExited: code => {
+            if (win.cur === "run" && win.runError === "" && code !== 0)
+                win.runError = win.lastLog || ("exit " + code);
         }
     }
-    function startRun() { win.runIndex = 0; runTimer.start(); }
+    function onRunEvent(line) {
+        let e;
+        try { e = JSON.parse(line); } catch (x) { return; }
+        if (e.type === "steps") { win.stepTitles = e.titles; win.runIndex = 0; }
+        else if (e.type === "step") win.runIndex = e.state === "ok" ? e.index + 1 : e.index;
+        else if (e.type === "log") win.lastLog = e.line;
+        else if (e.type === "error") win.runError = e.message;
+        else if (e.type === "done") win.step = win.order.indexOf("done");
+    }
+    function startRun() {
+        win.runError = "";
+        win.lastLog = "";
+        win.stepTitles = [];
+        win.runIndex = 0;
+        const lang = Settings.shellLang === "system" ? Tr.lang : Settings.shellLang;
+        runProc.payload = JSON.stringify({
+            mode: win.mode,
+            disk: win.diskPath,
+            windowsPart: win.windows ? win.windows.path : "",
+            linuxBytes: Math.round(win.linuxGb * (1 << 30)),
+            lang: lang,
+            layouts: Array.from(Settings.data.kbLayouts),
+            wallpaper: Settings.data.wallpaper || "",
+            user: { name: win.userName, fullName: win.fullName, hostname: win.hostName, password: win.pw },
+            confirm: true,
+            dryRun: win.dryRun
+        });
+        runProc.running = true;
+    }
 
     onVisibleChanged: if (visible) keys.forceActiveFocus()
     Item {
@@ -319,7 +355,7 @@ PanelWindow {
                 Item { Layout.fillWidth: true }
 
                 VButton {
-                    visible: win.step > 0 && !win.busyStep
+                    visible: win.step > 0 && (!win.busyStep || (win.cur === "run" && win.runError !== ""))
                     small: false
                     variant: "secondary"
                     text: Tr.t("inst.back")
@@ -340,7 +376,7 @@ PanelWindow {
             }
         }
     }
-    Process { id: rebooter; command: ["systemctl", "reboot"] }
+    Process { id: rebooter; command: ["bash", "-c", "sudo -n systemctl reboot || systemctl reboot"] }
 
     // ───────────── 1: мова ─────────────
     Component {
@@ -643,7 +679,7 @@ PanelWindow {
         id: cRun
         ColumnLayout {
             spacing: 10
-            readonly property int total: win.plan ? win.plan.steps.length : 1
+            readonly property int total: Math.max(1, win.stepTitles.length)
             Rectangle {
                 Layout.fillWidth: true
                 height: 8
@@ -662,19 +698,29 @@ PanelWindow {
                 }
             }
             Repeater {
-                model: win.plan && win.plan.ok ? win.plan.steps : []
+                model: win.stepTitles
                 Text {
                     required property var modelData
                     required property int index
                     Layout.fillWidth: true
-                    text: (index < win.runIndex ? "✓ " : index === win.runIndex ? "▸ " : "· ") + modelData.title
-                    color: index <= win.runIndex ? Theme.text : Theme.textSubtle
+                    text: (index < win.runIndex ? "✓ " : index === win.runIndex && win.runError === "" ? "▸ " : "· ") + modelData
+                    color: index < win.runIndex ? Theme.text : index === win.runIndex && win.runError === "" ? Theme.emeraldLight : Theme.textSubtle
                     font.family: Theme.mono
                     font.pixelSize: 11
                     elide: Text.ElideRight
                 }
             }
             Item { Layout.fillHeight: true }
+            Note { visible: win.runError !== ""; color: Theme.error; text: win.runError }
+            Text {
+                Layout.fillWidth: true
+                visible: win.runError === ""
+                text: win.lastLog
+                color: Theme.textSubtle
+                font.family: Theme.mono
+                font.pixelSize: 10
+                elide: Text.ElideRight
+            }
         }
     }
 

@@ -1,0 +1,12 @@
+[Unit]
+Description=BlackVarmir: перший запуск (snapper і знімок «Чиста установка»)
+After=local-fs.target dbus.service
+ConditionPathExists=!/var/lib/blackvarmir/firstboot-done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/blackvarmir-firstboot
+ExecStartPost=/usr/bin/install -Dm644 /dev/null /var/lib/blackvarmir/firstboot-done
+
+[Install]
+WantedBy=multi-user.target

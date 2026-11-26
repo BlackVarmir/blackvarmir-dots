@@ -5,8 +5,10 @@
 
     backend.py disks                  диски, розділи, вільне місце, знайдена Windows
     backend.py plan < вибір.json      що саме зміниться на диску (без змін; лише план)
+    backend.py run  < вибір.json      виконує встановлення (з "dryRun": true лише показує кроки)
 
-Нічого не пише на диск. Виконання плану (`run`) додається окремою зміною.
+`disks` і `plan` нічого не пишуть на диск. `run` пише, тому вимагає root і "confirm": true.
+Хід виконання: по рядку JSON у stdout ({"type": "steps|step|log|error|done", ...}).
 
 Змінні оточення:
     BV_FAKE_DISKS=файл.json   замість lsblk читати JSON з файлу (для перевірки інтерфейсу без дисків)
@@ -14,8 +16,11 @@
 
 import json
 import os
+import re
+import shlex
 import subprocess
 import sys
+import time
 
 MIB = 1 << 20
 GIB = 1 << 30
@@ -389,10 +394,197 @@ def cmd_plan(ch):
     return {"ok": True, "disk": d["path"], "steps": steps, "summary": summary}
 
 
+# ───────────────────────── Виконання ─────────────────────────
+
+MNT = "/mnt"
+LOCALREPO = "/opt/blackvarmir-localrepo"
+REPO_SRC = os.environ.get("BV_REPO") or "/opt/blackvarmir-dots"
+# Мінімум для завантаження: решту (Hyprland, оболонка, програми) ставить install.sh з репозиторію
+BASE_PKGS = ["base", "base-devel", "linux-lts", "linux-firmware", "intel-ucode", "amd-ucode",
+             "btrfs-progs", "dosfstools", "grub", "efibootmgr", "os-prober", "networkmanager",
+             "sudo", "git", "fish", "rsync", "paru-bin", "ttf-geist", "bibata-cursor-theme-bin"]
+USER_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
+HOST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,62}$")
+
+
+def emit(**kw):
+    print(json.dumps(kw, ensure_ascii=False), flush=True)
+
+
+class Runner:
+    """Виконує команди, передаючи вивід інтерфейсу. У dry-run лише показує, що було б виконано."""
+
+    def __init__(self, dry):
+        self.dry = dry
+
+    def run(self, cmd, stdin=None, secret=False, check=True):
+        emit(type="log", line="$ " + " ".join(shlex.quote(c) for c in cmd) + (" < (stdin)" if secret else ""))
+        if self.dry:
+            return 0
+        p = subprocess.Popen(cmd, stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        if stdin is not None:
+            p.stdin.write(stdin)
+            p.stdin.close()
+        for line in p.stdout:
+            emit(type="log", line=line.rstrip("\n"))
+        rc = p.wait()
+        if check and rc != 0:
+            raise RuntimeError("%s exited with %d" % (cmd[0], rc))
+        return rc
+
+    def chroot(self, cmd, **kw):
+        return self.run(["arch-chroot", MNT] + cmd, **kw)
+
+    def write(self, path, content, mode=0o644):
+        emit(type="log", line="write %s" % path)
+        if self.dry:
+            return
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+        os.chmod(path, mode)
+
+
+def pacman_conf_for_pacstrap():
+    """pacman.conf живого образу, але з локальним репозиторієм на місці, де він лежить на ISO."""
+    with open("/etc/pacman.conf", encoding="utf-8") as f:
+        text = f.read()
+    text = re.split(r"^\[blackvarmir-local\]", text, flags=re.M)[0].rstrip() + "\n"
+    if os.path.isdir(LOCALREPO):
+        text += "\n[blackvarmir-local]\nSigLevel = Optional TrustAll\nServer = file://%s\n" % LOCALREPO
+    return text
+
+
+def validate_user(u):
+    name, host = u.get("name", ""), u.get("hostname", "")
+    full = u.get("fullName", "") or name
+    if not USER_RE.match(name):
+        raise PlanError("Invalid user name.")
+    if not HOST_RE.match(host):
+        raise PlanError("Invalid computer name.")
+    if ":" in full or "\n" in full:
+        raise PlanError("Invalid full name.")
+    if not u.get("password"):
+        raise PlanError("Password is empty.")
+    return name, full, host
+
+
+def settings_json(ch, user):
+    """Початкові налаштування оболонки нового користувача: те, що обрано в установнику."""
+    wp = ch.get("wallpaper") or ""
+    d = {"shellLang": ch.get("lang") or "en", "kbLayouts": ch.get("layouts") or ["us"]}
+    if wp:
+        d["wallpaper"] = "/home/%s/.local/share/blackvarmir/wallpapers/%s" % (user, os.path.basename(wp))
+    return json.dumps(d, indent=2, ensure_ascii=False) + "\n"
+
+
+def extra_steps(r, ch, disk):
+    name, full, host = validate_user(ch["user"])
+    lang = ch.get("lang") if ch.get("lang") in ("en", "uk") else "en"
+    layouts = ch.get("layouts") or ["us"]
+    keymap = re.sub(r"[^a-z0-9_-]", "", str(layouts[0]).split(":")[0].lower()) or "us"
+    removable = ch.get("mode") == "erase"  # власний EFI-розділ: запасний шлях запуску безпечний
+    home = "%s/home/%s" % (MNT, name)
+
+    def base():
+        r.write("/tmp/bv-pacman.conf", "" if r.dry else pacman_conf_for_pacstrap())
+        r.run(["pacstrap", "-K", "-C", "/tmp/bv-pacman.conf", MNT] + BASE_PKGS)
+
+    def fstab():
+        emit(type="log", line="$ genfstab -U %s >> %s/etc/fstab" % (MNT, MNT))
+        if not r.dry:
+            out = subprocess.run(["genfstab", "-U", MNT], check=True, capture_output=True, text=True).stdout
+            with open(MNT + "/etc/fstab", "a", encoding="utf-8") as f:
+                f.write(out)
+
+    def system():
+        script = os.path.join(REPO_SRC, "installer", "chroot-setup.sh")
+        r.run(["install", "-Dm755", script, MNT + "/root/bv-chroot-setup.sh"])
+        r.chroot(["/root/bv-chroot-setup.sh", name, full, host, lang, keymap])
+        r.chroot(["chpasswd"], stdin="%s:%s\n" % (name, ch["user"]["password"]), secret=True)
+        # Wi-Fi, до якого підключились під час установки, лишається і в новій системі
+        r.run(["bash", "-c", "mkdir -p {m}/etc/NetworkManager/system-connections && "
+               "cp -a /etc/NetworkManager/system-connections/. {m}/etc/NetworkManager/system-connections/ 2>/dev/null; "
+               "chmod 600 {m}/etc/NetworkManager/system-connections/* 2>/dev/null; true".format(m=MNT)])
+
+    def bootloader():
+        r.run(["sed", "-i", "-E", "s/^#?GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=false/", MNT + "/etc/default/grub"])
+        r.run(["bash", "-c", "grep -q '^GRUB_DISABLE_OS_PROBER' %s/etc/default/grub || "
+               "echo 'GRUB_DISABLE_OS_PROBER=false' >> %s/etc/default/grub" % (MNT, MNT)])
+        r.chroot(["grub-install", "--target=x86_64-efi", "--efi-directory=/boot/efi",
+                  "--bootloader-id=BlackVarmir", "--recheck"])
+        if removable:
+            r.chroot(["grub-install", "--target=x86_64-efi", "--efi-directory=/boot/efi", "--removable"])
+        r.chroot(["grub-mkconfig", "-o", "/boot/grub/grub.cfg"])
+
+    def desktop():
+        r.run(["rsync", "-a", "--exclude", "iso/", REPO_SRC.rstrip("/") + "/", home + "/blackvarmir-dots/"])
+        r.chroot(["chown", "-R", "%s:%s" % (name, name), "/home/" + name])
+        r.write(home + "/.config/blackvarmir/settings.json", settings_json(ch, name))
+        r.chroot(["chown", "-R", "%s:%s" % (name, name), "/home/%s/.config" % name])
+        r.chroot(["sudo", "-H", "-u", name, "env", "BV_CHROOT=1", "bash",
+                  "/home/%s/blackvarmir-dots/install.sh" % name, "--skip-gpu"])
+        r.run(["rm", "-f", MNT + "/etc/sudoers.d/99-bv-install"])
+
+    def finish():
+        r.run(["rm", "-f", MNT + "/root/bv-chroot-setup.sh"])
+        r.run(["sync"])
+        r.run(["umount", "-R", MNT])
+
+    return [
+        {"id": "base", "title": "Install the base system", "fn": base},
+        {"id": "fstab", "title": "Generate fstab", "fn": fstab},
+        {"id": "system", "title": "Configure language, user and network", "fn": system},
+        {"id": "boot", "title": "Install the GRUB bootloader", "fn": bootloader},
+        {"id": "desktop", "title": "Install BlackVarmir (install.sh)", "fn": desktop},
+        {"id": "finish", "title": "Finish and unmount", "fn": finish},
+    ]
+
+
+def cmd_run(ch):
+    dry = bool(ch.get("dryRun"))
+    if not dry and os.geteuid() != 0:
+        emit(type="error", message="The installer must run as root."); return 1
+    if not dry and not ch.get("confirm"):
+        emit(type="error", message="Not confirmed."); return 1
+    p = cmd_plan(ch)
+    if not p["ok"]:
+        emit(type="error", message=p["error"]); return 1
+    disks = parse_disks(run_lsblk())  # ще раз: стан диска міг змінитися після підтвердження
+    try:
+        find_disk(disks, ch["disk"])
+        steps = [dict(s) for s in p["steps"]] + extra_steps(Runner(dry), ch, p["disk"])
+    except PlanError as e:
+        emit(type="error", message=str(e)); return 1
+    r = Runner(dry)
+    emit(type="steps", titles=[s["title"] for s in steps], dryRun=dry)
+    for i, st in enumerate(steps):
+        emit(type="step", index=i, state="start")
+        try:
+            if "fn" in st:
+                st["fn"]()
+            else:
+                for c in st["cmds"]:
+                    r.run(c)
+            if dry:
+                time.sleep(0.4)
+        except Exception as e:  # noqa: BLE001 — будь-яка помилка зупиняє встановлення
+            emit(type="error", message="%s: %s" % (st["title"], e), index=i)
+            if not dry:  # відмонтувати, щоб диск не лишався зайнятим і можна було повторити
+                subprocess.run(["umount", "-R", MNT], capture_output=True)
+            return 1
+        emit(type="step", index=i, state="ok")
+    emit(type="done")
+    return 0
+
+
 def main(argv):
-    if len(argv) < 2 or argv[1] not in ("disks", "plan"):
+    if len(argv) < 2 or argv[1] not in ("disks", "plan", "run"):
         print(__doc__, file=sys.stderr)
         return 2
+    if argv[1] == "run":
+        return cmd_run(json.load(sys.stdin))
     if argv[1] == "disks":
         out = cmd_disks()
     else:

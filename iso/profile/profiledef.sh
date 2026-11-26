@@ -19,5 +19,4 @@ file_permissions=(
   ["/etc/gshadow"]="0:0:400"
   ["/etc/sudoers.d/10-live"]="0:0:440"
   ["/usr/local/bin/blackvarmir-live-session"]="0:0:755"
-  ["/usr/local/bin/blackvarmir-installer"]="0:0:755"
 )
