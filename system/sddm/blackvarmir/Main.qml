@@ -24,6 +24,10 @@ Rectangle {
     property bool failed: false
     property bool busy: false
 
+    // Англійська за замовчуванням; українська, лише якщо мова системи українська
+    readonly property bool uk: Qt.locale().name.indexOf("uk") === 0
+    function tr(en, ua) { return uk ? ua : en; }
+
     readonly property string userName: users.currentItem ? users.currentItem.login : ""
 
     function doLogin() {
@@ -125,7 +129,7 @@ Rectangle {
             onTriggered: {
                 const now = new Date();
                 clockText.text = Qt.formatTime(now, "HH:mm");
-                dateText.text = now.toLocaleDateString(Qt.locale("en_US"), "dddd · d MMMM").toUpperCase();
+                dateText.text = now.toLocaleDateString(Qt.locale(root.uk ? "uk_UA" : "en_US"), "dddd · d MMMM").toUpperCase();
             }
         }
     }
@@ -274,7 +278,7 @@ Rectangle {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: password.text.length === 0
-                    text: "Пароль"
+                    text: root.tr("Password", "Пароль")
                     color: root.subtle
                     font.family: root.font
                     font.pixelSize: 16
@@ -315,8 +319,8 @@ Rectangle {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             height: 18
-            text: root.failed ? "Невірний пароль. Спробуйте ще раз"
-                : keyboard.capsLock ? "Увімкнено Caps Lock" : ""
+            text: root.failed ? root.tr("Wrong password. Try again", "Невірний пароль. Спробуйте ще раз")
+                : keyboard.capsLock ? root.tr("Caps Lock is on", "Увімкнено Caps Lock") : ""
             color: root.failed ? root.errorColor : root.muted
             font.family: root.font
             font.pixelSize: 13
@@ -337,7 +341,7 @@ Rectangle {
                 id: sessionLabel
                 anchors.verticalCenter: parent.verticalCenter
                 x: 14
-                text: (sessions.currentItem ? sessions.currentItem.sname : "Сеанс") + "  ▾"
+                text: (sessions.currentItem ? sessions.currentItem.sname : root.tr("Session", "Сеанс")) + "  ▾"
                 color: "#d4d4d8"
                 font.family: root.font
                 font.pixelSize: 13
@@ -442,9 +446,9 @@ Rectangle {
 
         Repeater {
             model: [
-                { glyph: "", tip: "Сон", ok: sddm.canSuspend, act: "suspend" },
-                { glyph: "", tip: "Перезавантажити", ok: sddm.canReboot, act: "reboot" },
-                { glyph: "", tip: "Вимкнути", ok: sddm.canPowerOff, act: "poweroff" }
+                { glyph: "", tip: root.tr("Sleep", "Сон"), ok: sddm.canSuspend, act: "suspend" },
+                { glyph: "", tip: root.tr("Restart", "Перезавантажити"), ok: sddm.canReboot, act: "reboot" },
+                { glyph: "", tip: root.tr("Shut down", "Вимкнути"), ok: sddm.canPowerOff, act: "poweroff" }
             ]
 
             Rectangle {
