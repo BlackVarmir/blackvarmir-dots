@@ -68,6 +68,7 @@ PanelWindow {
         let s = step + delta;
         if (order[s] === "along" && mode !== "alongside") s += delta;
         step = Math.max(0, Math.min(order.length - 1, s));
+        if (cur === "disk") loadDisks();
         if (cur === "confirm") buildPlan();
         if (cur === "run") startRun();
     }
@@ -490,6 +491,7 @@ PanelWindow {
                 }
             }
             Note { visible: win.disksLoaded && win.disks.length === 0; text: Tr.t("inst.noDisks") }
+            Note { visible: win.disks.some(d => d.busy); text: Tr.t("inst.busyHint") }
 
             IRow {
                 text: Tr.t("inst.modeErase"); hint: Tr.t("inst.modeEraseHint")
