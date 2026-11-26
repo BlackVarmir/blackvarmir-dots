@@ -8,7 +8,7 @@ import Quickshell.Hyprland
 import Quickshell.Networking
 
 // Установник: мова, розкладка, Wi-Fi, диск, шпалери, користувач, підтвердження.
-// Показується в живому сеансі (змінна BV_INSTALLER=1) або командою qs ipc call installer show.
+// Показується в живому сеансі (змінна BV_INSTALLER=1) або командою qs ipc call installer open.
 // BV_DRYRUN=1: план складається й показується, але на диск нічого не пишеться.
 // Логіка дисків: installer/backend.py (шлях з BV_REPO, типово /opt/blackvarmir-dots).
 PanelWindow {
@@ -82,8 +82,8 @@ PanelWindow {
 
     IpcHandler {
         target: "installer"
-        function show(): void { win.open(); }
-        function hide(): void { win.close(); }
+        function open(): void { win.open(); }
+        function close(): void { win.close(); }
     }
 
     // ───────────── Бекенд ─────────────
