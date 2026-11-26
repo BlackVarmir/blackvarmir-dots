@@ -1,7 +1,9 @@
 -- Гарячі клавіші. https://wiki.hypr.land/configuring/core/binds/
 -- Головний модифікатор — Super (клавіша Windows).
+-- У віртуальній машині хост забирає Super собі (лаунчер хоста відкривається замість нашого),
+-- тому там головним стає Alt.
 
-local mod      = "SUPER"
+local mod      = require("modules/vm") and "ALT" or "SUPER"
 local terminal = "kitty"
 
 local function bind(keys, action, flags)
