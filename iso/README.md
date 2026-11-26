@@ -21,7 +21,7 @@ Install BlackVarmir Arch · Try without installing · Safe graphics mode (nomode
 
 ## Живий сеанс
 
-`blackvarmir-live-session` розгортає конфіги з `/opt/blackvarmir-dots` у `~`, вимикає привітання, блокування і сон і запускає Hyprland з тією ж оболонкою. У режимі `install` разом із сеансом стартує `blackvarmir-installer` (поки заглушка з інструкцією; графічний установник з дошки «Етап 8» додається наступними змінами).
+`blackvarmir-live-session` розгортає конфіги з `/opt/blackvarmir-dots` у `~`, вимикає блокування і сон і запускає Hyprland з тією ж оболонкою. У режимі `install` разом із сеансом стартує `blackvarmir-installer` (поки заглушка з інструкцією; графічний установник з дошки «Етап 8» додається наступними змінами).
 
 ## Чого ще нема
 

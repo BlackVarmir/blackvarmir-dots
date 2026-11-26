@@ -15,9 +15,9 @@ mkdir -p "$HOME/.config" "$HOME/.local/share/blackvarmir/wallpapers" "$HOME/.con
 rsync -a "$SRC/home/.config/" "$HOME/.config/"
 cp -n "$SRC"/assets/wallpapers/* "$HOME/.local/share/blackvarmir/wallpapers/" 2>/dev/null || true
 
-# У живому сеансі без привітання, блокування і сну: екран входу тут не потрібен
+# У живому сеансі без блокування і сну: екран входу тут не потрібен
 cat > "$HOME/.config/blackvarmir/settings.json" <<'JSON'
-{ "welcomed": true, "lockAfter": 0, "sleepAfter": 0, "dimAfter": 0 }
+{ "lockAfter": 0, "sleepAfter": 0, "dimAfter": 0 }
 JSON
 
 # У режимі встановлення разом із сеансом стартує установник

@@ -31,9 +31,6 @@ ShellRoot {
     Clipboard {}
     CalendarPopup {}
 
-    // Етап 8: привітання при першому вході
-    Welcome {}
-
     // Етап 7: оновлення і знімки системи
     UpdatesPopup {}
     SnapshotBanner {}

@@ -12,7 +12,6 @@ import Quickshell.Io
 //   qs ipc call settings toggle    — Super + ,   (qs ipc call settings show display — одразу розділ)
 //   qs ipc call clipboard toggle   — Super + V
 //   qs ipc call calendar toggle    — клік по годиннику
-//   qs ipc call welcome show       — екран привітання (показується сам при першому вході)
 //   qs ipc call capture …          — Print (див. Capture.qml)
 Singleton {
     id: panels
@@ -24,7 +23,6 @@ Singleton {
     property bool calendarOpen: false
     property bool captureOpen: false
     property bool updatesOpen: false
-    property bool welcomeOpen: false
     // Вікно налаштувань — звичайне вікно, тож оверлеї при його відкритті просто ховаються
     property bool settingsOpen: false
     property string settingsSection: "lang"
