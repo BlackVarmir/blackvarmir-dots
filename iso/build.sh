@@ -38,13 +38,20 @@ while read -r pkg; do
         echo "= $pkg"
         continue
     fi
+    # Пакет міг перейти з AUR в офіційні репозиторії (так сталося з ttf-geist): тоді беремо його звідти
+    if pacman -Si "$pkg" >/dev/null 2>&1; then
+        echo "~ $pkg: є в офіційних репозиторіях"
+        sudo pacman -Sw --noconfirm --cachedir "$LOCAL" "$pkg"
+        continue
+    fi
     tmp="$(mktemp -d)"
     git clone --depth 1 "https://aur.archlinux.org/$pkg.git" "$tmp/$pkg"
     (cd "$tmp/$pkg" && PKGDEST="$LOCAL" makepkg -s --noconfirm --needed)
     rm -rf "$tmp"
 done < "$ISO_DIR/aur.txt"
+sudo chown -R "$USER:" "$LOCAL"
 (cd "$LOCAL" && rm -f blackvarmir-local.db* blackvarmir-local.files* \
-    && repo-add -q blackvarmir-local.db.tar.gz ./*.pkg.tar.* )
+    && repo-add -q blackvarmir-local.db.tar.gz ./*.pkg.tar.zst )
 
 # ── 2. Профіль: основа + репозиторій + тема ───────────────────────
 step "Складання профілю"
@@ -69,7 +76,7 @@ mkdir -p "$theme"
 cp "$REPO_DIR"/system/grub/blackvarmir/* "$theme/"
 # Шрифт Geist беремо з щойно зібраного пакета ttf-geist
 fonttmp="$(mktemp -d)"
-for pkgfile in "$LOCAL"/ttf-geist-*.pkg.tar.*; do
+for pkgfile in "$LOCAL"/ttf-geist-*.pkg.tar.zst; do
     [[ -e "$pkgfile" ]] && bsdtar -xf "$pkgfile" -C "$fonttmp" usr/share/fonts 2>/dev/null || true
 done
 font="$(find "$fonttmp" \( -iname 'Geist-Regular.*' -o -iname 'Geist\[*' \) \( -name '*.ttf' -o -name '*.otf' \) | head -1)"
