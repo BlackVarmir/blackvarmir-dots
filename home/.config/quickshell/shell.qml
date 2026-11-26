@@ -34,4 +34,7 @@ ShellRoot {
     // Етап 7: оновлення і знімки системи
     UpdatesPopup {}
     SnapshotBanner {}
+
+    // Етап 8: установник (живий сеанс: BV_INSTALLER=1, або qs ipc call installer show)
+    Installer {}
 }

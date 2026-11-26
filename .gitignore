@@ -8,3 +8,4 @@ home/.config/gtk-4.0/*
 !home/.config/gtk-4.0/gtk.css
 # qt6ct.conf створює install.sh (у ньому повний шлях до палітри)
 home/.config/qt6ct/qt6ct.conf
+__pycache__/
