@@ -37,3 +37,11 @@ hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
 
 -- Апаратне декодування відео на Intel (VA-API)
 hl.env("LIBVA_DRIVER_NAME", "iHD")
+
+-- Віртуальна машина (VMware, VirtualBox, QEMU): віртуальна відеокарта не вміє
+-- передавати буфери застосунків у Hyprland, і Qt та kitty падають з помилкою
+-- «invalid arguments for wl_surface.attach». Застосунки малюють програмно (llvmpipe),
+-- на справжньому залізі нічого не змінюється.
+if os.execute("systemd-detect-virt --vm --quiet") then
+    hl.env("LIBGL_ALWAYS_SOFTWARE", "1")
+end
