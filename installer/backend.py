@@ -566,11 +566,15 @@ def extra_steps(r, ch, disk):
 
     def desktop():
         r.run(["rsync", "-a", "--exclude", "iso/", REPO_SRC.rstrip("/") + "/", home + "/blackvarmir-dots/"])
+        r.run(["chmod", "+x", home + "/blackvarmir-dots/install.sh"])
         r.chroot(["chown", "-R", "%s:%s" % (name, name), "/home/" + name])
         r.write(home + "/.config/blackvarmir/settings.json", settings_json(ch, name))
         r.chroot(["chown", "-R", "%s:%s" % (name, name), "/home/%s/.config" % name])
         r.chroot(["sudo", "-H", "-u", name, "env", "BV_CHROOT=1", "bash",
                   "/home/%s/blackvarmir-dots/install.sh" % name, "--skip-gpu"])
+        # install.sh міг зупинитись зарано: без цих пакетів і служби система не запуститься графічно
+        r.chroot(["pacman", "-Q", "hyprland", "sddm", "quickshell"])
+        r.chroot(["systemctl", "is-enabled", "sddm"])
         r.run(["rm", "-f", MNT + "/etc/sudoers.d/99-bv-install"])
 
     def finish():
