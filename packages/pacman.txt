@@ -4,6 +4,7 @@
 base-devel
 git
 networkmanager
+wireguard-tools
 bluez
 bluez-utils
 pipewire
