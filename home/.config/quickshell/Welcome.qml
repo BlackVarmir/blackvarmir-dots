@@ -67,7 +67,7 @@ PanelWindow {
     component WRow: Rectangle {
         id: wr
         property string text: ""
-        property string right: ""
+        property string trail: ""
         property bool on: false
         signal clicked()
 
@@ -90,7 +90,7 @@ PanelWindow {
             anchors.verticalCenter: parent.verticalCenter
             anchors.right: parent.right
             anchors.rightMargin: 12
-            text: wr.right
+            text: wr.trail
             color: Theme.textSubtle
             font.family: Theme.font
             font.pixelSize: 12
@@ -216,9 +216,9 @@ PanelWindow {
         id: cLang
         ColumnLayout {
             spacing: 8
-            WRow { text: "English"; right: "en"; on: Settings.shellLang === "en"; onClicked: Settings.set("shellLang", "en") }
-            WRow { text: "Українська"; right: "uk"; on: Settings.shellLang === "uk"; onClicked: Settings.set("shellLang", "uk") }
-            WRow { text: Tr.t("welcome.sys"); right: Tr.t("welcome.fromLang"); on: Settings.shellLang === "system"; onClicked: Settings.set("shellLang", "system") }
+            WRow { text: "English"; trail: "en"; on: Settings.shellLang === "en"; onClicked: Settings.set("shellLang", "en") }
+            WRow { text: "Українська"; trail: "uk"; on: Settings.shellLang === "uk"; onClicked: Settings.set("shellLang", "uk") }
+            WRow { text: Tr.t("welcome.sys"); trail: Tr.t("welcome.fromLang"); on: Settings.shellLang === "system"; onClicked: Settings.set("shellLang", "system") }
             Item { Layout.fillHeight: true }
         }
     }
@@ -234,7 +234,7 @@ PanelWindow {
                 WRow {
                     required property var modelData
                     text: modelData.label
-                    right: modelData.short
+                    trail: modelData.short
                     on: parent.picked.indexOf(modelData.value) !== -1
                     onClicked: {
                         const cur = parent.picked;
@@ -296,7 +296,7 @@ PanelWindow {
 
                     WRow {
                         text: wnet.modelData.name
-                        right: (wnet.modelData.connected ? Tr.t("wifi.connected") : wnet.open ? Tr.t("wifi.open") : "WPA2") + " · "
+                        trail: (wnet.modelData.connected ? Tr.t("wifi.connected") : wnet.open ? Tr.t("wifi.open") : "WPA2") + " · "
                             + ["▂", "▂▄", "▂▄▆", "▂▄▆█"][Math.min(3, Math.floor(wnet.modelData.signalStrength * 4))]
                         on: wnet.modelData.connected
                         onClicked: {
