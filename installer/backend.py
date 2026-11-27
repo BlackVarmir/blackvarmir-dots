@@ -591,7 +591,11 @@ def extra_steps(r, ch, disk):
                 r.run(["install", "-Dm644", path, MNT + "/var/log/blackvarmir-install.log"])
                 break
         r.run(["sync"])
-        r.run(["umount", "-R", MNT])
+        # install.sh у chroot запускає gsettings, який піднімає dbus-daemon і gvfs; вони лишаються
+        # живими й тримають /mnt («target is busy»). Закриваємо їх, потім відмонтовуємо;
+        # якщо щось усе одно тримає, відмонтовуємо ліниво (дані вже на диску після sync).
+        r.run(["bash", "-c", "for m in %s/home %s/.snapshots %s/boot/efi %s; do fuser -km \"$m\" >/dev/null 2>&1; done; sleep 2; true" % (MNT, MNT, MNT, MNT)])
+        r.run(["bash", "-c", "umount -R %s || { sleep 2; umount -R -l %s; }" % (MNT, MNT)])
 
     return [
         {"id": "base", "title": "Install the base system", "fn": base},
