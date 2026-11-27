@@ -15,7 +15,9 @@ end
 ------------------------------------------------------------
 bind(mod .. " + SPACE", hl.dsp.exec_cmd("qs ipc call spotlight toggle"))
 
-bind(mod .. " + TAB",          hl.dsp.exec_cmd("qs ipc call overview toggle"))
+-- Огляд: Super + Tab. У віртуальній машині mod = Alt, а Alt + Tab — це перемикач вікон,
+-- тому там Огляд відкривається на Alt + A.
+bind(mod .. (require("modules/vm") and " + A" or " + TAB"), hl.dsp.exec_cmd("qs ipc call overview toggle"))
 bind(mod .. " + N",            hl.dsp.exec_cmd("qs ipc call control toggle"))
 bind(mod .. " + comma",        hl.dsp.exec_cmd("qs ipc call settings toggle"))
 -- Швидко повернутися на попередній стіл (без огляду)
