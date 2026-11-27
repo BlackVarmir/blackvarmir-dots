@@ -332,6 +332,7 @@ PanelWindow {
             anchors.rightMargin: 12
             verticalAlignment: TextInput.AlignVCenter
             echoMode: fld.secret ? TextInput.Password : TextInput.Normal
+            clip: true
             activeFocusOnTab: true
             // Tab / Shift+Tab — наступне / попереднє поле
             Keys.onTabPressed: event => { const n = nextItemInFocusChain(true); if (n) n.forceActiveFocus(); event.accepted = true; }
@@ -507,8 +508,22 @@ PanelWindow {
         return wifiDevice.networks.values.slice().sort((a, b) => {
             if (a.connected !== b.connected) return a.connected ? -1 : 1;
             return b.signalStrength - a.signalStrength;
-        }).slice(0, 4);
+        });
     }
+    // Стабільний список назв для Repeater: масив перестворюється лише коли змінився набір мереж.
+    // Раніше модель оновлювалась на кожну зміну рівня сигналу — рядки перестворювались, поле пароля
+    // «стрибало», а введений текст зникав.
+    property var netNames: []
+    function refreshNetNames() {
+        const fresh = nets.map(n => n.name).filter((n, i, a) => n !== "" && a.indexOf(n) === i);
+        const cur = netNames;
+        const same = fresh.length === cur.length && fresh.every(n => cur.indexOf(n) !== -1);
+        if (same) return;
+        // зберігаємо наявний порядок, нові мережі додаємо в кінець (за сигналом)
+        const kept = cur.filter(n => fresh.indexOf(n) !== -1);
+        netNames = kept.concat(fresh.filter(n => kept.indexOf(n) === -1));
+    }
+    onNetsChanged: refreshNetNames()
     property string wifiOpen: ""
     property string wifiError: ""
 
@@ -545,7 +560,7 @@ PanelWindow {
         id: cWifi
         ColumnLayout {
             spacing: 8
-            Component.onCompleted: if (win.wifiDevice) win.wifiDevice.scannerEnabled = true
+            Component.onCompleted: { win.refreshNetNames(); if (win.wifiDevice) win.wifiDevice.scannerEnabled = true; }
             Component.onDestruction: if (win.wifiDevice) win.wifiDevice.scannerEnabled = false
 
             // Стан мережі: кабель, Wi-Fi або нічого
@@ -561,38 +576,41 @@ PanelWindow {
             Note { visible: win.updating; color: Theme.emeraldLight; text: Tr.t("inst.updating") }
 
             Repeater {
-                model: win.nets
+                model: win.netNames
                 ColumnLayout {
                     id: wnet
                     required property var modelData
-                    readonly property bool open: modelData.security === WifiSecurityType.Open
+                    // сама мережа шукається за назвою; об'єкт може оновлюватись, а рядок лишається
+                    readonly property var net: win.wifiDevice ? (win.wifiDevice.networks.values.find(n => n.name === modelData) ?? null) : null
+                    readonly property bool open: net ? net.security === WifiSecurityType.Open : false
+                    visible: net !== null
                     Layout.fillWidth: true
                     spacing: 6
 
                     Connections {
-                        target: wnet.modelData
+                        target: wnet.net
                         function onConnectionFailed(reason) {
-                            win.wifiOpen = wnet.modelData.name;
+                            win.wifiOpen = wnet.modelData;
                             win.wifiError = reason === ConnectionFailReason.NoSecrets || reason === ConnectionFailReason.WifiAuthTimeout
                                 ? Tr.t("wifi.wrongPassword") : Tr.t("wifi.failed");
                         }
                     }
 
                     IRow {
-                        text: wnet.modelData.name
-                        trail: (wnet.modelData.connected ? Tr.t("wifi.connected") : wnet.open ? Tr.t("wifi.open") : "WPA2") + " · "
-                            + ["▂", "▂▄", "▂▄▆", "▂▄▆█"][Math.min(3, Math.floor(wnet.modelData.signalStrength * 4))]
-                        on: wnet.modelData.connected
+                        text: wnet.modelData
+                        trail: (wnet.net?.connected ? Tr.t("wifi.connected") : wnet.open ? Tr.t("wifi.open") : "WPA2") + " · "
+                            + ["▂", "▂▄", "▂▄▆", "▂▄▆█"][Math.min(3, Math.floor(wnet.net?.signalStrength * 4))]
+                        on: wnet.net?.connected
                         onClicked: {
                             win.wifiError = "";
-                            if (wnet.modelData.connected) return;
-                            if (wnet.modelData.known || wnet.open) wnet.modelData.connect();
-                            else win.wifiOpen = win.wifiOpen === wnet.modelData.name ? "" : wnet.modelData.name;
+                            if (wnet.net?.connected) return;
+                            if (wnet.net?.known || wnet.open) wnet.net?.connect();
+                            else win.wifiOpen = win.wifiOpen === wnet.modelData ? "" : wnet.modelData;
                         }
                     }
 
                     Rectangle {
-                        visible: win.wifiOpen === wnet.modelData.name && !wnet.modelData.connected
+                        visible: win.wifiOpen === wnet.modelData && !wnet.net?.connected
                         Layout.fillWidth: true
                         implicitHeight: 38
                         radius: 8
@@ -607,11 +625,12 @@ PanelWindow {
                             anchors.rightMargin: 12
                             verticalAlignment: TextInput.AlignVCenter
                             echoMode: TextInput.Password
+                            clip: true
                             color: Theme.text
                             font.family: Theme.font
                             font.pixelSize: 13
                             focus: parent.visible
-                            Keys.onReturnPressed: event => { if (text.length >= 8) wnet.modelData.connectWithPsk(text); event.accepted = true; }
+                            Keys.onReturnPressed: event => { if (text.length >= 8) wnet.net?.connectWithPsk(text); event.accepted = true; }
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: psk.text.length === 0
