@@ -11,9 +11,9 @@ terminal-box: "terminal_box_*.png"
 }
 
 + boot_menu {
-    left = 28%
+    left = 20%
     top = 32%
-    width = 44%
+    width = 60%
     height = 46%
     item_color = "#a1a1aa"
     selected_item_color = "#fafafa"
