@@ -62,6 +62,8 @@ Scope {
 
     function start(dir, app) {
         if (active) { step(dir); return; }
+        // lastIpcObject (title, class, розмір) сам не оновлюється: без цього картки порожні
+        Hyprland.refreshToplevels();
         if (dir < 0) Layouts.undoRecentSwitch();
         Panels.closeAll();
         list = build(app);
@@ -107,6 +109,7 @@ Scope {
         id: showDelay
         interval: 150
         onTriggered: {
+            Hyprland.refreshToplevels();
             root.shown = root.active && root.list.length > 0;
             submapProbe.running = true;
         }
@@ -148,7 +151,7 @@ Scope {
             id: card
             anchors.fill: parent
             implicitWidth: strip.contentWidth + 36
-            implicitHeight: 200
+            implicitHeight: 224
             radius: 22
             color: Theme.glass
             border.width: 1
