@@ -48,7 +48,9 @@ command -v sudo >/dev/null || die "Потрібен sudo."
 curl -fsI https://archlinux.org >/dev/null 2>&1 || die "Немає інтернету."
 
 printf '%sBlackVarmir Arch%s · Hyprland · Varmir Dark Glass\n' "$cyan" "$reset"
-sudo -v
+# Якщо sudo вже працює без пароля (установник у chroot), пароль не просимо: `sudo -v` вимагає
+# пароль, коли хоч один збіг у sudoers (%wheel ... ALL) його потребує, і без TTY висить назавжди.
+sudo -n true 2>/dev/null || sudo -v
 
 # ── 1. CachyOS (за бажанням) ──────────────────────────────────────
 if (( WITH_CACHYOS )); then
