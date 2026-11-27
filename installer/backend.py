@@ -378,11 +378,42 @@ def plan_custom(disks, ch):
     return steps, summary, d
 
 
+def plan_free(disks, ch):
+    """Встановлення у вільну (нерозмічену) ділянку диска; решта диска не чіпається.
+
+    ch: disk, freeStart (початок ділянки, байти), linuxBytes (розмір системи).
+    Наявний EFI-розділ диска використовується спільно (не форматується); якщо його немає, у цій же
+    ділянці перед системним розділом створюється новий на 1 ГіБ.
+    """
+    d = find_disk(disks, ch["disk"])
+    if d["ptable"] not in ("gpt", ""):
+        raise PlanError("This disk uses %s. Free-space install needs a GPT disk." % d["ptable"])
+    start = to_int(ch.get("freeStart"), -1)
+    gap = next((g for g in d["free"] if g["start"] == start), None)
+    if not gap:
+        raise PlanError("Selected free space does not exist.")
+    linux = to_int(ch.get("linuxBytes")) // ALIGN * ALIGN
+    if linux < MIN_LINUX:
+        raise PlanError("Arch needs at least %s." % fmt_size(MIN_LINUX))
+    esp_new = not d["efi"]
+    need = linux + (ESP_SIZE if esp_new else 0)
+    if need > gap["size"]:
+        raise PlanError("Not enough free space: %s needed, %s available." % (fmt_size(need), fmt_size(gap["size"])))
+    items, cursor = [], gap["start"]
+    if esp_new:
+        items.append({"free": {"start": cursor, "size": ESP_SIZE}, "role": "efi"})
+        cursor += ESP_SIZE
+    else:
+        items.append({"part": d["efi"], "role": "efi", "format": False})
+    items.append({"free": {"start": cursor, "size": linux}, "role": "/"})
+    return plan_custom(disks, dict(ch, custom=items))
+
+
 def cmd_plan(ch):
     disks = parse_disks(run_lsblk())
     mode = ch.get("mode")
     try:
-        fn = {"erase": plan_erase, "alongside": plan_alongside, "custom": plan_custom}[mode]
+        fn = {"erase": plan_erase, "alongside": plan_alongside, "custom": plan_custom, "free": plan_free}[mode]
     except KeyError:
         return {"ok": False, "error": "Unknown mode: %s" % mode}
     try:
