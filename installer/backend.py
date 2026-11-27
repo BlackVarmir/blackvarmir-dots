@@ -567,11 +567,12 @@ def extra_steps(r, ch, disk):
     def desktop():
         r.run(["rsync", "-a", "--exclude", "iso/", REPO_SRC.rstrip("/") + "/", home + "/blackvarmir-dots/"])
         r.run(["chmod", "+x", home + "/blackvarmir-dots/install.sh"])
-        # копія з ISO без .git: підключаємо origin, щоб у встановленій системі працював git pull (без мережі — пропускаємо)
+        # копія з ISO без .git: підключаємо origin і беремо актуальний main, щоб система одразу була свіжою
+        # і оновлювалась через blackvarmir-update (без мережі лишається версія з ISO)
         r.chroot(["sudo", "-H", "-u", name, "bash", "-c",
                   "cd ~/blackvarmir-dots && git init -q -b main && "
                   "git remote add origin https://github.com/BlackVarmir/blackvarmir-dots.git && "
-                  "git fetch -q --depth=1 origin main && git reset -q origin/main && "
+                  "git fetch -q --depth=1 origin main && git reset -q --hard origin/main && "
                   "git branch -q --set-upstream-to=origin/main main || true"])
         r.chroot(["chown", "-R", "%s:%s" % (name, name), "/home/" + name])
         r.write(home + "/.config/blackvarmir/settings.json", settings_json(ch, name))

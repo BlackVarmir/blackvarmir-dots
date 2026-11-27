@@ -215,6 +215,8 @@ Singleton {
             // Оновлення: коли прочитано новини Arch і коли було останнє сповіщення
             property real newsRead: 0
             property string updatesNotified: ""
+            // Автоматично оновлювати BlackVarmir (конфіги й оболонку) з GitHub
+            property bool autoUpdate: true
             property string kbToggle: "alt_shift"
             property int repeatDelay: 300
             property int repeatRate: 40

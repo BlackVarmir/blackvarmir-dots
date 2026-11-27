@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+# Оновлення BlackVarmir (конфіги, оболонка, скрипти) з гілки main на GitHub.
+#
+#   blackvarmir-update check            перевірити, чи є нове (друкує стан у JSON)
+#   blackvarmir-update apply [--auto]   застосувати (--auto: лише безпечні зміни, без запитань)
+#   blackvarmir-update apply --force    застосувати, зберігши власні правки в патч
+#   blackvarmir-update rollback         повернути версію, що була до останнього оновлення
+#
+# Конфіги в ~/.config — симлінки на репозиторій, тож після reset Quickshell підхоплює зміни
+# сам, а Hyprland перечитується командою hyprctl reload. Зміни, що потребують root
+# (install.sh, packages/, system/ або нові теки в home/.config), автоматично не
+# застосовуються: стан повертає needsInstall, і користувач запускає install.sh сам.
+# Перед застосуванням створюється знімок snapper (якщо він налаштований).
+set -uo pipefail
+
+REPO="${BV_REPO_DIR:-$HOME/blackvarmir-dots}"
+STATE_DIR="$HOME/.cache/blackvarmir"
+PREV_FILE="$STATE_DIR/update-prev"
+mkdir -p "$STATE_DIR"
+
+esc() {
+    local s="${1//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\t'/ }"
+    printf '%s' "$s"
+}
+
+notify() { command -v notify-send >/dev/null && notify-send -a BlackVarmir "$1" "${2:-}" || true; }
+
+# Друкує стан JSON. $1 — результат дії (порожній — просто перевірка), $2 — код помилки
+emit() {
+    local result="${1:-}" error="${2:-}"
+    local cur="" latest="" behind=0 ahead=0 dirty=0 branch="" needs=0
+    if git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1; then
+        cur="$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || true)"
+        latest="$(git -C "$REPO" rev-parse --short origin/main 2>/dev/null || true)"
+        branch="$(git -C "$REPO" symbolic-ref --short HEAD 2>/dev/null || true)"
+        if [[ -n "$cur" && -n "$latest" ]]; then
+            behind="$(git -C "$REPO" rev-list --count HEAD..origin/main 2>/dev/null || echo 0)"
+            ahead="$(git -C "$REPO" rev-list --count origin/main..HEAD 2>/dev/null || echo 0)"
+        fi
+        [[ -n "$(git -C "$REPO" status --porcelain --untracked-files=no 2>/dev/null)" ]] && dirty=1
+        if (( behind > 0 )); then
+            local changed
+            changed="$(git -C "$REPO" diff --name-only HEAD origin/main 2>/dev/null || true)"
+            grep -qE '^(install\.sh|packages/|system/)' <<<"$changed" && needs=1
+            # Нова тека в home/.config ще не лінкована в ~/.config: це робить install.sh
+            while IFS= read -r d; do
+                [[ -z "$d" ]] && continue
+                [[ -e "$HOME/.config/$d" || -L "$HOME/.config/$d" ]] || needs=1
+            done < <(grep '^home/\.config/' <<<"$changed" | cut -d/ -f3 | sort -u)
+        fi
+    fi
+    local commits="" sep=""
+    if (( behind > 0 )); then
+        while IFS=$'\t' read -r sha subj; do
+            [[ -z "$sha" ]] && continue
+            commits+="$sep{\"sha\":\"$(esc "$sha")\",\"subject\":\"$(esc "$subj")\"}"
+            sep=","
+        done < <(git -C "$REPO" log -n 20 --pretty=tformat:'%h%x09%s' HEAD..origin/main 2>/dev/null)
+    fi
+    local rb=false
+    [[ -s "$PREV_FILE" ]] && rb=true
+    printf '{"current":"%s","latest":"%s","branch":"%s","behind":%d,"ahead":%d,"dirty":%s,"needsInstall":%s,"canRollback":%s,"result":"%s","error":"%s","commits":[%s]}\n' \
+        "$(esc "$cur")" "$(esc "$latest")" "$(esc "$branch")" "$behind" "$ahead" \
+        "$( ((dirty)) && echo true || echo false )" "$( ((needs)) && echo true || echo false )" "$rb" \
+        "$(esc "$result")" "$(esc "$error")" "$commits"
+}
+
+fetch() {
+    git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1 || return 2
+    git -C "$REPO" remote get-url origin >/dev/null 2>&1 || return 2
+    timeout 40 git -C "$REPO" fetch -q origin main 2>/dev/null || return 1
+    # Установник без мережі створює репозиторій без комітів: прив'язуємо його до origin/main
+    # (файли лишаються як були, тож розбіжності з main видно як «власні зміни»)
+    git -C "$REPO" rev-parse --verify -q HEAD >/dev/null || git -C "$REPO" reset -q origin/main 2>/dev/null
+    return 0
+}
+
+reload_ui() {
+    # Quickshell перезавантажується сам, коли змінюються його файли
+    command -v hyprctl >/dev/null && hyprctl reload >/dev/null 2>&1 || true
+}
+
+snapshot() {
+    command -v snapper >/dev/null || return 0
+    snapper -c root create -c number -d "Перед оновленням BlackVarmir" >/dev/null 2>&1 || true
+}
+
+# Оновити origin/main; без репозиторію чи мережі друкує стан із помилкою і повертає 1
+fetch_or_report() {
+    local rc=0
+    fetch || rc=$?
+    if (( rc == 2 )); then emit "" "not-git"; return 1; fi
+    if (( rc != 0 )); then emit "" "offline"; return 1; fi
+}
+
+cmd_check() {
+    fetch_or_report || return 0
+    emit ""
+}
+
+cmd_apply() {
+    local auto=0 force=0 a
+    for a in "$@"; do
+        case "$a" in --auto) auto=1 ;; --force) force=1 ;; esac
+    done
+    fetch_or_report || return 0
+    local branch ahead behind dirty=0
+    branch="$(git -C "$REPO" symbolic-ref --short HEAD 2>/dev/null || true)"
+    ahead="$(git -C "$REPO" rev-list --count origin/main..HEAD 2>/dev/null || echo 0)"
+    behind="$(git -C "$REPO" rev-list --count HEAD..origin/main 2>/dev/null || echo 0)"
+    [[ -n "$(git -C "$REPO" status --porcelain --untracked-files=no 2>/dev/null)" ]] && dirty=1
+
+    # Робоча гілка розробника і непушені коміти не чіпаємо ніколи
+    if [[ "$branch" != "main" ]]; then emit "" "branch"; return 0; fi
+    if (( ahead > 0 )); then emit "" "ahead"; return 0; fi
+    if (( behind == 0 && dirty == 0 )); then emit "uptodate"; return 0; fi
+
+    # Нові теки в ~/.config, пакети і системні файли без root не застосувати
+    local state needs
+    state="$(emit)"
+    needs=false
+    grep -q '"needsInstall":true' <<<"$state" && needs=true
+    if (( auto )); then
+        if (( dirty )); then emit "" "dirty"; return 0; fi
+        if [[ "$needs" == true ]]; then emit "needs-install"; return 0; fi
+    fi
+    if (( dirty )) && (( ! force )); then emit "" "dirty"; return 0; fi
+
+    snapshot
+    local old
+    old="$(git -C "$REPO" rev-parse HEAD 2>/dev/null || true)"
+    if (( dirty )); then
+        git -C "$REPO" diff > "$STATE_DIR/local-changes-$(date +%Y%m%d-%H%M%S).patch" 2>/dev/null || true
+    fi
+    if ! git -C "$REPO" reset -q --hard origin/main 2>/dev/null; then
+        emit "" "reset-failed"
+        return 0
+    fi
+    [[ -n "$old" ]] && printf '%s\n' "$old" > "$PREV_FILE"
+    reload_ui
+    notify "BlackVarmir оновлено" "Версія $(git -C "$REPO" rev-parse --short HEAD)"
+    if [[ "$needs" == true ]]; then emit "needs-install"; else emit "updated"; fi
+}
+
+cmd_rollback() {
+    local prev
+    prev="$(cat "$PREV_FILE" 2>/dev/null || true)"
+    if [[ -z "$prev" ]] || ! git -C "$REPO" cat-file -e "$prev^{commit}" 2>/dev/null; then
+        emit "" "no-rollback"
+        return 0
+    fi
+    snapshot
+    git -C "$REPO" reset -q --hard "$prev" 2>/dev/null || { emit "" "reset-failed"; return 0; }
+    rm -f "$PREV_FILE"
+    reload_ui
+    notify "BlackVarmir повернуто" "Версія $(git -C "$REPO" rev-parse --short HEAD)"
+    emit "rolled-back"
+}
+
+case "${1:-check}" in
+    check) cmd_check ;;
+    apply) shift; cmd_apply "$@" ;;
+    rollback) cmd_rollback ;;
+    *) echo "Використання: blackvarmir-update check | apply [--auto|--force] | rollback" >&2; exit 2 ;;
+esac
