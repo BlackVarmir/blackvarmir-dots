@@ -258,6 +258,10 @@ PanelWindow {
             anchors.rightMargin: 12
             verticalAlignment: TextInput.AlignVCenter
             echoMode: fld.secret ? TextInput.Password : TextInput.Normal
+            activeFocusOnTab: true
+            // Tab / Shift+Tab — наступне / попереднє поле
+            Keys.onTabPressed: event => { const n = nextItemInFocusChain(true); if (n) n.forceActiveFocus(); event.accepted = true; }
+            Keys.onBacktabPressed: event => { const n = nextItemInFocusChain(false); if (n) n.forceActiveFocus(); event.accepted = true; }
             color: Theme.text
             font.family: Theme.font
             font.pixelSize: 13
