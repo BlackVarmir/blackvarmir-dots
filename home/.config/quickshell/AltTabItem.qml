@@ -14,7 +14,8 @@ Item {
     signal chosen()
 
     readonly property var ipc: toplevel.lastIpcObject ?? ({})
-    readonly property var entry: DesktopEntries.heuristicLookup(ipc.class ?? "")
+    // Порожній клас дав би випадковий застосунок зі списку (значок і назва «Qt V4L2 test Utility»)
+    readonly property var entry: (ipc.class ?? "") !== "" ? DesktopEntries.heuristicLookup(ipc.class) : null
     readonly property real aspect: (ipc.size?.[0] ?? 16) / Math.max(1, ipc.size?.[1] ?? 10)
 
     width: 220
