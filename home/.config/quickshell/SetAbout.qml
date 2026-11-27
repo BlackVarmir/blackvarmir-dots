@@ -32,7 +32,28 @@ SetPage {
         return out;
     }
 
-    Component.onCompleted: { probe.running = true; Updates.check(); }
+    // Рядок стану і пояснення для картки «Оновлення BlackVarmir»
+    readonly property var dots: DotsUpdate.info
+    readonly property string dotsStatus: {
+        if (DotsUpdate.checkedAt === 0) return DotsUpdate.busy ? Tr.t("about.checking") : Tr.t("dots.notChecked");
+        if (dots.error === "offline") return Tr.t("dots.offline");
+        if (dots.error === "not-git") return Tr.t("dots.notGit");
+        if (dots.result === "updated") return Tr.t("dots.updated", dots.current);
+        if (dots.result === "rolled-back") return Tr.t("dots.rolledBack", dots.current);
+        if (dots.behind > 0) return Tr.plural(dots.behind, "plural.changes") + " · " + Tr.t("dots.available");
+        return Tr.t("dots.upToDate", dots.current);
+    }
+    readonly property string dotsHint: {
+        if (dots.error === "dirty") return Tr.t("dots.hintDirty");
+        if (dots.error === "branch") return Tr.t("dots.hintBranch");
+        if (dots.error === "ahead") return Tr.t("dots.hintAhead");
+        if (dots.error === "no-rollback" || dots.error === "reset-failed" || dots.error === "parse") return Tr.t("dots.hintFailed");
+        if (dots.needsInstall && dots.behind > 0) return Tr.t("dots.hintNeedsInstall");
+        if (dots.behind > 0) return dots.commits.slice(0, 4).map(c => "• " + c.subject).join("\n");
+        return Tr.t("dots.hint");
+    }
+
+    Component.onCompleted: { probe.running = true; Updates.check(); DotsUpdate.check(); }
 
     Process {
         id: probe
@@ -143,6 +164,48 @@ SetPage {
                 text: Tr.t("about.update")
                 variant: page.updates > 0 ? "primary" : "secondary"
                 onClicked: Updates.upgrade()
+            }
+        }
+    }
+
+    // Оновлення самого BlackVarmir з GitHub (main)
+    SetCard {
+        label: Tr.t("about.dotsEyebrow")
+        SetRow {
+            divider: false
+            label: page.dotsStatus
+            hint: page.dotsHint
+            Row {
+                spacing: 8
+                VButton {
+                    variant: "secondary"
+                    enabled: !DotsUpdate.busy
+                    text: Tr.t("dots.check")
+                    onClicked: DotsUpdate.check()
+                }
+                VButton {
+                    visible: DotsUpdate.available
+                    variant: "primary"
+                    enabled: !DotsUpdate.busy
+                    text: DotsUpdate.info.needsInstall ? Tr.t("dots.updateSystem") : Tr.t("dots.update")
+                    onClicked: DotsUpdate.update()
+                }
+            }
+        }
+        SetRow {
+            label: Tr.t("dots.auto")
+            hint: Tr.t("dots.autoHint")
+            Toggle { checked: DotsUpdate.auto; onToggled: v => Settings.set("autoUpdate", v) }
+        }
+        SetRow {
+            visible: DotsUpdate.info.canRollback
+            label: Tr.t("dots.rollback")
+            hint: Tr.t("dots.rollbackHint")
+            VButton {
+                variant: "ghost"
+                enabled: !DotsUpdate.busy
+                text: Tr.t("dots.rollbackButton")
+                onClicked: DotsUpdate.rollback()
             }
         }
     }
