@@ -39,7 +39,7 @@ PanelWindow {
 
     // Кроки: 0 мова, 1 розкладка, 2 Wi-Fi, 3 диск, 4 скільки віддати (лише поруч із Windows),
     // 5 шпалери, 6 користувач, 7 підтвердження, 8 встановлення, 9 готово
-    readonly property var order: ["lang", "kb", "net", "disk", "along", "look", "user", "confirm", "run", "done"]
+    readonly property var order: ["lang", "kb", "net", "disk", "along", "free", "look", "user", "confirm", "run", "done"]
     property int step: 0
     readonly property string cur: order[step]
     readonly property bool busyStep: cur === "run" || cur === "done"
@@ -48,7 +48,8 @@ PanelWindow {
     property var disks: []
     property bool disksLoaded: false
     property string diskPath: ""
-    property string mode: "erase"          // erase | alongside
+    property string mode: "erase"          // erase | alongside | free
+    property real freeStart: -1            // початок вибраної вільної ділянки (байти), режим free
     property real linuxGb: 100
     property string fullName: ""
     property string userName: ""
@@ -63,6 +64,12 @@ PanelWindow {
     property string runError: ""
 
     readonly property var disk: disks.find(d => d.path === diskPath) ?? null
+    // Вільні ділянки диска, у яких вміщається система (і новий EFI, якщо його на диску немає)
+    readonly property real espBytes: disk && !disk.efi ? (1 << 30) : 0
+    readonly property var freeGaps: disk ? disk.free.filter(g => g.size - espBytes >= 40 * (1 << 30)) : []
+    readonly property var freeGap: freeGaps.find(g => g.start === freeStart) ?? null
+    readonly property real maxFreeGb: freeGap ? Math.floor((freeGap.size - espBytes) / (1 << 30)) : 40
+    readonly property bool gpt: disk ? (disk.ptable === "gpt" || disk.ptable === "") : false
     readonly property var windows: disk && disk.windows.length > 0 ? disk.windows[0] : null
     readonly property bool nameOk: /^[a-z_][a-z0-9_-]{0,31}$/.test(userName)
     readonly property bool pwOk: pw.length > 0 && pw === pw2
@@ -76,6 +83,8 @@ PanelWindow {
     function go(delta) {
         let s = step + delta;
         if (order[s] === "along" && mode !== "alongside") s += delta;
+        if (order[s] === "free" && mode !== "free") s += delta;
+        if (order[s] === "along" && mode !== "alongside") s += delta;
         step = Math.max(0, Math.min(order.length - 1, s));
         if (cur === "disk") loadDisks();
         if (cur === "confirm") buildPlan();
@@ -84,7 +93,8 @@ PanelWindow {
 
     readonly property bool canNext: {
         if (cur === "net") return online || dryRun;
-        if (cur === "disk") return disk !== null && !disk.busy && (mode === "erase" || (windows !== null && !windows.bitlocker));
+        if (cur === "disk") return disk !== null && !disk.busy && (mode === "erase" || (mode === "free" && gpt && freeGaps.length > 0) || (mode === "alongside" && windows !== null && !windows.bitlocker));
+        if (cur === "free") return freeGap !== null && linuxGb >= 40 && linuxGb <= maxFreeGb;
         if (cur === "along") return linuxGb >= 40 && linuxGb <= maxGb;
         if (cur === "user") return nameOk && pwOk && hostName.length > 0;
         if (cur === "confirm") return plan !== null && plan.ok;
@@ -141,6 +151,7 @@ PanelWindow {
             mode: win.mode,
             disk: win.diskPath,
             windowsPart: win.windows ? win.windows.path : "",
+            freeStart: win.freeStart,
             linuxBytes: Math.round(win.linuxGb * (1 << 30))
         });
         planProc.running = true;
@@ -178,6 +189,7 @@ PanelWindow {
             mode: win.mode,
             disk: win.diskPath,
             windowsPart: win.windows ? win.windows.path : "",
+            freeStart: win.freeStart,
             linuxBytes: Math.round(win.linuxGb * (1 << 30)),
             lang: lang,
             layouts: Array.from(Settings.data.kbLayouts),
@@ -335,7 +347,7 @@ PanelWindow {
             Loader {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                sourceComponent: ({ lang: cLang, kb: cKeyboard, net: cWifi, disk: cDisk, along: cAlong,
+                sourceComponent: ({ lang: cLang, kb: cKeyboard, net: cWifi, disk: cDisk, along: cAlong, free: cFree,
                     look: cLook, user: cUser, confirm: cConfirm, run: cRun, done: cDone })[win.cur]
             }
 
@@ -592,7 +604,19 @@ PanelWindow {
                 on: win.mode === "alongside"
                 onClicked: win.mode = "alongside"
             }
-            IRow { text: Tr.t("inst.modeCustom"); hint: Tr.t("inst.modeCustomHint"); disabled: true }
+            IRow {
+                text: Tr.t("inst.modeFree")
+                hint: !win.disk ? Tr.t("inst.modeFreeHint")
+                    : !win.gpt ? Tr.t("inst.freeNoGpt")
+                    : win.freeGaps.length === 0 ? Tr.t("inst.noFree") : Tr.t("inst.modeFreeHint")
+                disabled: !win.disk || !win.gpt || win.freeGaps.length === 0
+                on: win.mode === "free"
+                onClicked: {
+                    win.mode = "free";
+                    win.freeStart = win.freeGaps[0].start;
+                    win.linuxGb = Math.min(Math.max(win.linuxGb, 40), win.maxFreeGb);
+                }
+            }
 
             Note {
                 visible: win.mode === "alongside" && win.windows && win.windows.bitlocker
@@ -642,6 +666,58 @@ PanelWindow {
             }
             Note { text: Tr.t("inst.alongMin", "40 GB") }
             IRow { text: Tr.t("inst.swap"); trail: Tr.t("inst.swapZram"); disabled: true }
+            Item { Layout.fillHeight: true }
+        }
+    }
+
+    // ───────────── 5б: вільна ділянка і її розмір ─────────────
+    Component {
+        id: cFree
+        ColumnLayout {
+            spacing: 10
+            Repeater {
+                model: win.freeGaps
+                IRow {
+                    required property var modelData
+                    text: Tr.t("inst.freeGap", win.gb(modelData.size))
+                    hint: Tr.t("inst.freeAt", win.gb(modelData.start))
+                    on: win.freeStart === modelData.start
+                    onClicked: {
+                        win.freeStart = modelData.start;
+                        win.linuxGb = Math.min(Math.max(win.linuxGb, 40), win.maxFreeGb);
+                    }
+                }
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                height: 34
+                radius: 8
+                color: Qt.rgba(1, 1, 1, 0.06)
+                Rectangle {
+                    width: parent.width * Math.min(1, win.linuxGb / Math.max(1, win.maxFreeGb))
+                    height: parent.height
+                    radius: 8
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0; color: Theme.emerald }
+                        GradientStop { position: 1; color: Theme.cyan }
+                    }
+                }
+                Text {
+                    anchors.centerIn: parent
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: 10
+                    font.weight: Font.DemiBold
+                    text: Tr.t("inst.archGb", Math.round(win.linuxGb) + " GB") + " / " + Math.round(win.maxFreeGb) + " GB"
+                }
+            }
+            VSlider {
+                Layout.fillWidth: true
+                value: (win.linuxGb - 40) / Math.max(1, win.maxFreeGb - 40)
+                onMoved: v => win.linuxGb = Math.round(40 + v * Math.max(0, win.maxFreeGb - 40))
+            }
+            Note { text: Tr.t("inst.freeNote", "40 GB") }
             Item { Layout.fillHeight: true }
         }
     }
