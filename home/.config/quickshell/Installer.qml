@@ -77,6 +77,15 @@ PanelWindow {
 
     function gb(bytes) { return Math.round(bytes / (1 << 30)) + " GB"; }
 
+    // Прокрутити вміст кроку так, щоб елемент (наприклад, поле пароля Wi-Fi) було видно
+    function reveal(item) {
+        if (!item) return;
+        const y = item.mapToItem(contentFlick.contentItem, 0, 0).y;
+        const bottom = y + item.height + 10;
+        const maxY = Math.max(0, contentFlick.contentHeight - contentFlick.height);
+        if (bottom > contentFlick.contentY + contentFlick.height) contentFlick.contentY = Math.min(maxY, bottom - contentFlick.height);
+    }
+
     function open() { step = 0; shown = true; loadDisks(); }
     function close() { shown = false; }
 
@@ -281,21 +290,26 @@ PanelWindow {
         signal clicked()
 
         Layout.fillWidth: true
-        implicitHeight: hint !== "" ? 50 : 40
+        implicitHeight: Math.max(hint !== "" ? 50 : 40, wcol.implicitHeight + 16)
         radius: 10
         opacity: disabled ? 0.45 : 1
         color: on ? Theme.accentSoft : Qt.rgba(1, 1, 1, wrArea.containsMouse && !disabled ? 0.07 : 0.04)
         border.width: 1
         border.color: on ? Theme.emerald : Theme.hairline
 
+        // Довгі назви (SSID, моделі дисків) і підписи обрізаються, а не вилазять за рядок
         Column {
+            id: wcol
             anchors.verticalCenter: parent.verticalCenter
             x: 12
+            width: parent.width - 24 - (trailText.visible ? trailText.implicitWidth + 8 : 0)
             spacing: 1
-            Text { text: wr.text; color: "#e4e4e7"; font.family: Theme.font; font.pixelSize: 13 }
-            Text { visible: wr.hint !== ""; text: wr.hint; color: Theme.textSubtle; font.family: Theme.font; font.pixelSize: 11 }
+            Text { width: parent.width; elide: Text.ElideRight; text: wr.text; color: "#e4e4e7"; font.family: Theme.font; font.pixelSize: 13 }
+            Text { width: parent.width; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; visible: wr.hint !== ""; text: wr.hint; color: Theme.textSubtle; font.family: Theme.font; font.pixelSize: 11 }
         }
         Text {
+            id: trailText
+            visible: wr.trail !== ""
             anchors.verticalCenter: parent.verticalCenter
             anchors.right: parent.right
             anchors.rightMargin: 12
@@ -364,7 +378,8 @@ PanelWindow {
         id: card
         anchors.centerIn: parent
         width: 340
-        height: 430
+        // на великих екранах вища, щоб списку було просторніше; на малих не вилазить за екран
+        height: Math.min(560, Math.max(430, (parent ? parent.height : 800) - 160))
         radius: 18
         color: Qt.rgba(17 / 255, 17 / 255, 19 / 255, 0.78)
         border.width: 1
@@ -400,11 +415,42 @@ PanelWindow {
                 wrapMode: Text.WordWrap
             }
 
-            Loader {
+            // Вміст кроку прокручується, якщо не вміщається (довгі списки Wi-Fi, дисків, підсумок):
+            // раніше він вилазив за картку і накладався на кнопки.
+            Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                sourceComponent: ({ lang: cLang, kb: cKeyboard, net: cWifi, disk: cDisk, along: cAlong, free: cFree,
-                    look: cLook, user: cUser, confirm: cConfirm, run: cRun, done: cDone })[win.cur]
+
+                Flickable {
+                    id: contentFlick
+                    anchors.fill: parent
+                    clip: true
+                    contentWidth: width
+                    contentHeight: Math.max(height, body.item ? body.item.implicitHeight : 0)
+                    boundsBehavior: Flickable.StopAtBounds
+                    flickableDirection: Flickable.VerticalFlick
+
+                    Loader {
+                        id: body
+                        width: contentFlick.width
+                        height: contentFlick.contentHeight
+                        sourceComponent: ({ lang: cLang, kb: cKeyboard, net: cWifi, disk: cDisk, along: cAlong, free: cFree,
+                            look: cLook, user: cUser, confirm: cConfirm, run: cRun, done: cDone })[win.cur]
+                        onLoaded: contentFlick.contentY = 0
+                    }
+                }
+
+                // Тонкий індикатор прокрутки
+                Rectangle {
+                    visible: contentFlick.contentHeight > contentFlick.height + 1
+                    x: parent.width + 8
+                    width: 3
+                    radius: 1.5
+                    color: Qt.rgba(1, 1, 1, 0.28)
+                    height: Math.max(24, parent.height * contentFlick.height / contentFlick.contentHeight)
+                    y: contentFlick.contentHeight > contentFlick.height
+                        ? (parent.height - height) * contentFlick.contentY / (contentFlick.contentHeight - contentFlick.height) : 0
+                }
             }
 
             RowLayout {
@@ -610,6 +656,8 @@ PanelWindow {
                     }
 
                     Rectangle {
+                        id: pskBox
+                        onVisibleChanged: if (visible) Qt.callLater(win.reveal, pskBox)
                         visible: win.wifiOpen === wnet.modelData && !wnet.net?.connected
                         Layout.fillWidth: true
                         implicitHeight: 38
