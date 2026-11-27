@@ -434,12 +434,50 @@ PanelWindow {
     property string wifiOpen: ""
     property string wifiError: ""
 
+    // Кабельне з'єднання (Ethernet) і справжній доступ до інтернету. Перевіряється, поки
+    // відкритий крок мережі: інсталятору інтернет потрібен у будь-якому вигляді.
+    property string wiredDev: ""
+    property bool online: false
+    readonly property string wifiConnectedName: {
+        for (let i = 0; i < nets.length; i++) if (nets[i].connected) return nets[i].name;
+        return "";
+    }
+    Process {
+        id: netProbe
+        command: ["sh", "-c",
+            "nmcli -t -f DEVICE,TYPE,STATE device status 2>/dev/null | awk -F: '$2==\"ethernet\" && $3==\"connected\" {print $1; exit}'; " +
+            "echo '--'; curl -fsI --max-time 4 https://archlinux.org >/dev/null 2>&1 && echo yes || echo no"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const lines = text.split("\n").map(l => l.trim());
+                win.wiredDev = lines[0] === "--" ? "" : lines[0];
+                win.online = lines.indexOf("yes") !== -1;
+            }
+        }
+    }
+    Timer {
+        interval: 3000
+        repeat: true
+        triggeredOnStart: true
+        running: win.shown && win.cur === "net"
+        onTriggered: if (!netProbe.running) netProbe.running = true
+    }
+
     Component {
         id: cWifi
         ColumnLayout {
             spacing: 8
             Component.onCompleted: if (win.wifiDevice) win.wifiDevice.scannerEnabled = true
             Component.onDestruction: if (win.wifiDevice) win.wifiDevice.scannerEnabled = false
+
+            // Стан мережі: кабель, Wi-Fi або нічого
+            IRow {
+                text: win.wiredDev !== "" ? Tr.t("inst.wired")
+                    : win.wifiConnectedName !== "" ? Tr.t("inst.wifiConn", win.wifiConnectedName)
+                    : Tr.t("inst.netNone")
+                hint: (win.wiredDev !== "" ? win.wiredDev + " · " : "") + (win.online ? Tr.t("inst.online") : Tr.t("inst.offline"))
+                on: win.online
+            }
 
             Repeater {
                 model: win.nets
@@ -504,7 +542,7 @@ PanelWindow {
                     }
                 }
             }
-            Note { visible: win.nets.length === 0; text: win.wifiDevice ? Tr.t("inst.noNet") : Tr.t("wifi.noAdapter") }
+            Note { visible: win.nets.length === 0 && win.wiredDev === ""; text: win.wifiDevice ? Tr.t("inst.noNet") : Tr.t("wifi.noAdapter") }
             Item { Layout.fillHeight: true }
         }
     }
