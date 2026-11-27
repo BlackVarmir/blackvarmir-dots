@@ -620,6 +620,7 @@ PanelWindow {
 
             Note { visible: !win.online && !win.dryRun; color: Theme.error; text: Tr.t("inst.needNet") }
             Note { visible: win.updating; color: Theme.emeraldLight; text: Tr.t("inst.updating") }
+            Note { visible: win.wifiError !== "" && win.wifiOpen === ""; color: Theme.error; text: win.wifiError }
 
             Repeater {
                 model: win.netNames
@@ -636,9 +637,17 @@ PanelWindow {
                     Connections {
                         target: wnet.net
                         function onConnectionFailed(reason) {
-                            win.wifiOpen = wnet.modelData;
-                            win.wifiError = reason === ConnectionFailReason.NoSecrets || reason === ConnectionFailReason.WifiAuthTimeout
-                                ? Tr.t("wifi.wrongPassword") : Tr.t("wifi.failed");
+                            // Поле пароля лише коли справді проблема з паролем; інакше (наприклад, перемикання
+                            // між збереженими мережами) просто показуємо помилку, не відкриваючи поле
+                            if (reason === ConnectionFailReason.NoSecrets || reason === ConnectionFailReason.WifiAuthTimeout) {
+                                win.wifiOpen = wnet.modelData;
+                                win.wifiError = Tr.t("wifi.wrongPassword");
+                            } else {
+                                win.wifiError = Tr.t("wifi.failed");
+                            }
+                        }
+                        function onConnectedChanged() {
+                            if (wnet.net?.connected && win.wifiOpen === wnet.modelData) { win.wifiOpen = ""; win.wifiError = ""; }
                         }
                     }
 
@@ -650,7 +659,7 @@ PanelWindow {
                         onClicked: {
                             win.wifiError = "";
                             if (wnet.net?.connected) return;
-                            if (wnet.net?.known || wnet.open) wnet.net?.connect();
+                            if (wnet.net?.known || wnet.open) { win.wifiOpen = ""; wnet.net?.connect(); }
                             else win.wifiOpen = win.wifiOpen === wnet.modelData ? "" : wnet.modelData;
                         }
                     }
