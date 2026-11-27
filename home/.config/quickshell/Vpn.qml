@@ -87,7 +87,7 @@ Singleton {
         return String(text).replace(/@@rc=\d+/, "").replace(/^Error: /m, "").trim();
     }
 
-    function unescape(s) {
+    function unesc(s) {
         return s.replace(/\\(.)/g, "$1");
     }
 
@@ -103,7 +103,7 @@ Singleton {
                     if (!m) continue;
                     if (m[2] !== "wireguard" && m[2] !== "vpn") continue;
                     out.push({
-                        name: vpn.unescape(m[1]),
+                        name: vpn.unesc(m[1]),
                         kind: m[2],
                         active: m[3] !== "",
                         device: m[3]
