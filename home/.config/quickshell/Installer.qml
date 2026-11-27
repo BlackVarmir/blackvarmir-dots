@@ -83,6 +83,7 @@ PanelWindow {
     }
 
     readonly property bool canNext: {
+        if (cur === "net") return online || dryRun;
         if (cur === "disk") return disk !== null && !disk.busy && (mode === "erase" || (windows !== null && !windows.bitlocker));
         if (cur === "along") return linuxGb >= 40 && linuxGb <= maxGb;
         if (cur === "user") return nameOk && pwOk && hostName.length > 0;
@@ -488,6 +489,8 @@ PanelWindow {
                 hint: (win.wiredDev !== "" ? win.wiredDev + " · " : "") + (win.online ? Tr.t("inst.online") : Tr.t("inst.offline"))
                 on: win.online
             }
+
+            Note { visible: !win.online && !win.dryRun; color: Theme.error; text: Tr.t("inst.needNet") }
 
             Repeater {
                 model: win.nets
