@@ -31,7 +31,8 @@ PanelWindow {
     readonly property bool dryRun: Quickshell.env("BV_DRYRUN") === "1"
     // Де лежить бекенд: BV_REPO, на ISO /opt/blackvarmir-dots, у розробці ~/blackvarmir-dots
     // У живому сеансі (користувач live з sudo без пароля) бекенд працює від root; у розробці без sudo.
-    readonly property string runBackend: 'S=""; sudo -n true 2>/dev/null && S="sudo -n env BV_REPO=$BV_REPO"; '
+    readonly property string runBackend: 'R="$HOME/.cache/blackvarmir-installer/repo"; [ -f "$R/installer/backend.py" ] && BV_REPO="$R"; '
+        + 'S=""; sudo -n true 2>/dev/null && S="sudo -n env BV_REPO=$BV_REPO"; '
         + 'for d in "$BV_REPO" /opt/blackvarmir-dots "$HOME/blackvarmir-dots"; do '
         + '[ -f "$d/installer/backend.py" ] && exec $S python3 "$d/installer/backend.py" "$@"; done; '
         + 'echo "backend.py not found" >&2; exit 3'
@@ -81,6 +82,12 @@ PanelWindow {
 
     // Наступний і попередній крок: «Скільки віддати» показується лише в режимі поруч із Windows
     function go(delta) {
+        if (cur === "net" && delta > 0 && !updateDone && !dryRun && Quickshell.env("BV_NOUPDATE") !== "1") {
+            updateDone = true;
+            updating = true;
+            updateProc.running = true;
+            return;
+        }
         let s = step + delta;
         if (order[s] === "along" && mode !== "alongside") s += delta;
         if (order[s] === "free" && mode !== "free") s += delta;
@@ -92,7 +99,7 @@ PanelWindow {
     }
 
     readonly property bool canNext: {
-        if (cur === "net") return online || dryRun;
+        if (cur === "net") return (online || dryRun) && !updating;
         if (cur === "disk") return disk !== null && !disk.busy && (mode === "erase" || (mode === "free" && gpt && freeGaps.length > 0) || (mode === "alongside" && windows !== null && !windows.bitlocker));
         if (cur === "free") return freeGap !== null && linuxGb >= 40 && linuxGb <= maxFreeGb;
         if (cur === "along") return linuxGb >= 40 && linuxGb <= maxGb;
@@ -102,7 +109,55 @@ PanelWindow {
     }
     readonly property real maxGb: windows && windows.minBytes ? Math.floor((windows.size - windows.minBytes) / (1 << 30)) - 2 : 40
 
-    Component.onCompleted: if (shown) loadDisks()
+    Component.onCompleted: {
+        if (shown) loadDisks();
+        if (shown && !dryRun) resumeProc.running = true;
+    }
+
+    // ───────────── Самооновлення інсталятора ─────────────
+    // Після кроку мережі (коли є інтернет) беремо свіжий main: якщо інтерфейс чи бекенд змінились,
+    // копіюємо оболонку в ~/.config/quickshell (Quickshell перезавантажується сам) і продовжуємо
+    // з кроку «диск»; бекенд бере оновлену копію з ~/.cache/blackvarmir-installer/repo.
+    property bool updating: false
+    property bool updateDone: false
+    Process {
+        id: updateProc
+        command: ["bash", "-c", `
+            D="$HOME/.cache/blackvarmir-installer"; SRC=/opt/blackvarmir-dots
+            mkdir -p "$D"; rm -rf "$D/repo"
+            timeout 120 git clone -q --depth 1 https://github.com/BlackVarmir/blackvarmir-dots.git "$D/repo" 2>/dev/null || { echo failed; exit 0; }
+            if diff -rq "$SRC/installer" "$D/repo/installer" >/dev/null 2>&1 && \
+               diff -rq "$SRC/home/.config/quickshell" "$D/repo/home/.config/quickshell" >/dev/null 2>&1; then
+                echo same; exit 0
+            fi
+            echo disk > "$D/resume"
+            echo updated
+            rsync -a --delete "$D/repo/home/.config/quickshell/" "$HOME/.config/quickshell/"
+        `]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const r = text.trim();
+                // «updated»: Quickshell зараз перезавантажиться й продовжить із resume; інакше йдемо далі
+                if (r !== "updated") { win.updating = false; win.go(1); }
+            }
+        }
+    }
+    Timer {
+        interval: 15000
+        running: win.updating
+        onTriggered: { win.updating = false; win.go(1); }
+    }
+    // Після перезавантаження оболонки: продовжити з кроку, на якому зупинились
+    Process {
+        id: resumeProc
+        command: ["bash", "-c", 'f="$HOME/.cache/blackvarmir-installer/resume"; cat "$f" 2>/dev/null; rm -f "$f"']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const i = win.order.indexOf(text.trim());
+                if (i > 0) { win.updateDone = true; win.step = i; win.loadDisks(); }
+            }
+        }
+    }
 
     IpcHandler {
         target: "installer"
@@ -503,6 +558,7 @@ PanelWindow {
             }
 
             Note { visible: !win.online && !win.dryRun; color: Theme.error; text: Tr.t("inst.needNet") }
+            Note { visible: win.updating; color: Theme.emeraldLight; text: Tr.t("inst.updating") }
 
             Repeater {
                 model: win.nets
