@@ -19,9 +19,13 @@ PanelWindow {
     anchors { top: true; bottom: true; left: true; right: true }
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
-    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.layer: peek ? WlrLayer.Bottom : WlrLayer.Overlay
     WlrLayershell.namespace: "varmir-installer"
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    WlrLayershell.keyboardFocus: peek ? WlrKeyboardFocus.None : WlrKeyboardFocus.Exclusive
+
+    // F12 (або `qs ipc call installer peek`) ховає інсталятор під вікна, щоб працював термінал
+    // (Alt+Enter у VM, Super+Enter на залізі). Повторно — повертає.
+    property bool peek: false
 
     property bool shown: Quickshell.env("BV_INSTALLER") === "1"
     readonly property bool dryRun: Quickshell.env("BV_DRYRUN") === "1"
@@ -93,6 +97,7 @@ PanelWindow {
         target: "installer"
         function open(): void { win.open(); }
         function close(): void { win.close(); }
+        function peek(): void { win.peek = !win.peek; }
     }
 
     // ───────────── Бекенд ─────────────
@@ -189,6 +194,7 @@ PanelWindow {
         anchors.fill: parent
         focus: true
         Keys.onReturnPressed: if (next.visible && win.canNext) next.clicked()
+        Keys.onPressed: event => { if (event.key === Qt.Key_F12) { win.peek = !win.peek; event.accepted = true; } }
     }
 
     Rectangle {
@@ -764,6 +770,15 @@ PanelWindow {
                 font.family: Theme.mono
                 font.pixelSize: 10
                 elide: Text.ElideRight
+            }
+            Text {
+                Layout.fillWidth: true
+                text: Tr.t("inst.peekHint")
+                color: Theme.textSubtle
+                opacity: 0.7
+                font.family: Theme.mono
+                font.pixelSize: 9
+                wrapMode: Text.WordWrap
             }
         }
     }
